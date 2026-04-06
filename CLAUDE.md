@@ -59,6 +59,19 @@ SendRequestAsync<T>(HttpMethod, string endpoint, object? body = null)
 - `SubmitAwbAsync(SellasistAddAwbRequest)` — przesłanie numeru śledzenia do Sellasist
 - `GetOrderShipmentsAsync(int orderId)` — historia przesyłek zamówienia
 
+## Operacje na produktach i kategoriach
+
+**Konfiguracja runtime:**
+- `Configure(SellasistConfig newConfig)` — nadpisanie credentials w runtime (np. dane z DB zamiast appsettings)
+
+**Produkty:**
+- `GetProductsBulkAsync(int limit = 500)` — lista produktów z `/products_bulk`, paginacja auto-batch. Zwraca `SellasistProductBulkItem` (uwaga: pole to `ProductId`, nie `Id`)
+- `GetProductAsync(int productId)` — szczegóły produktu z `/products/{id}`. Opis to `List<SellasistProductDescription>` (datacells z Allegro JSON lub HTML). Kategorie osadzone w produkcie jako `List<SellasistProductCategory>`
+
+**Kategorie:**
+- `GetCategoriesAsync(int limit = 500)` — lista kategorii, paginacja auto-batch
+- `GetCategoryAsync(int categoryId)` — szczegóły kategorii z `/categories/{id}`. Nazwa w `Languages[0].Title`
+
 ## Kluczowe DTO
 
 | DTO | Opis |
@@ -68,6 +81,10 @@ SendRequestAsync<T>(HttpMethod, string endpoint, object? body = null)
 | `SellasistAddAwbRequest` | Request AWB: order_id, tracking_number, courier_number, service |
 | `SellasistShipmentDto` | Historia przesyłki: status, daty, cena, numery śledzenia |
 | `CourierWebhookResult` | Odpowiedź webhooka kuriera: success, shipment_id, tracking_number, error |
+| `SellasistProductBulkItem` | Produkt z listy bulk: ProductId, Sku, Ean, cena, status archiwizacji |
+| `SellasistProductResponse` | Szczegóły produktu: opis (datacells), kategorie, zdjęcia, cena promo |
+| `SellasistCategoryResponse` | Kategoria z listy: id, parent, title |
+| `SellasistCategoryDetailResponse` | Szczegóły kategorii: Languages z tytułami |
 
 ## Zależności
 
@@ -79,6 +96,14 @@ Microsoft.Extensions.Logging.Abstractions (9.0.4)
 
 Target framework: `.NET 10.0`
 
+## Uwagi dot. API Sellasist
+
+- Endpoint `/categories` zwraca dużo śmieciowych wpisów ("Nadrzędna Grupa Główna"). Realne kategorie są na dalszych stronach. Lepszym podejściem jest wyciąganie kategorii z detali produktów (`categories` w `SellasistProductResponse`) i pobieranie szczegółów per kategoria via `/categories/{id}`.
+- Pole `description` w produkcie to tablica datacells (format Allegro JSON) — wymaga konwersji na HTML. Może też zawierać czysty HTML.
+- Produkt bulk zwraca `product_id` (nie `id`) — DTO `SellasistProductBulkItem` mapuje to poprawnie.
+
 ## Kontekst integracji z B2B
 
-Ta library jest konsumowana przez projekt `B2B` (`d:\Claude\B2B\src`) — używana w warstwie `B2B.Infrastructure` do synchronizacji statusów zamówień i przesyłek między systemem B2B a platformą Sellasist.
+Ta library jest konsumowana przez projekt `B2B` (`d:\Claude\B2B\src`) — używana w warstwie `B2B.Infrastructure` do:
+- **Importu produktów** — `SellasistProductImportSource` (adapter pattern) pobiera produkty, kategorie i zdjęcia z Sellasist do lokalnej bazy B2B
+- **Synchronizacji zamówień** — statusy i przesyłki między systemem B2B a platformą Sellasist

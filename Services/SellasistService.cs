@@ -12,6 +12,11 @@ namespace Sellasist.Services;
 public class SellasistService(IHttpClientFactory httpClientFactory, SellasistConfig config, ILogger<SellasistService> logger)
     : ISellasistService
 {
+    private SellasistConfig _config = config;
+
+    /// <inheritdoc />
+    public void Configure(SellasistConfig newConfig) => _config = newConfig;
+
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNameCaseInsensitive = true,
@@ -24,16 +29,16 @@ public class SellasistService(IHttpClientFactory httpClientFactory, SellasistCon
 
     private async Task<T?> SendRequestAsync<T>(string endpoint, HttpMethod method, object? body = null)
     {
-        if (string.IsNullOrWhiteSpace(config.ApiToken))
+        if (string.IsNullOrWhiteSpace(_config.ApiToken))
         {
             logger.LogError("Sellasist API token is empty");
             return default;
         }
 
-        var url = $"{config.BaseUrl}/{endpoint}";
+        var url = $"{_config.BaseUrl}/{endpoint}";
 
         using var request = new HttpRequestMessage(method, url);
-        request.Headers.Add("apiKey", config.ApiToken);
+        request.Headers.Add("apiKey", _config.ApiToken);
         request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
 
         if (body != null)
@@ -151,4 +156,58 @@ public class SellasistService(IHttpClientFactory httpClientFactory, SellasistCon
     public async Task<List<SellasistShipmentDto>> GetOrderShipmentsAsync(int orderId)
         => await SendRequestAsync<List<SellasistShipmentDto>>($"ordersshipments?order_id={orderId}", HttpMethod.Get)
            ?? [];
+
+    // === PRODUCTS ===
+
+    public async Task<List<SellasistProductBulkItem>> GetProductsBulkAsync(int limit = 500)
+    {
+        var all = new List<SellasistProductBulkItem>();
+        int offset = 0;
+        bool hasMore = true;
+
+        while (hasMore)
+        {
+            var batch = await SendRequestAsync<List<SellasistProductBulkItem>>(
+                $"products_bulk?offset={offset}&limit={limit}", HttpMethod.Get);
+
+            if (batch is { Count: > 0 })
+            {
+                all.AddRange(batch);
+                offset += limit;
+                if (batch.Count < limit) hasMore = false;
+            }
+            else hasMore = false;
+        }
+        return all;
+    }
+
+    public async Task<SellasistProductResponse?> GetProductAsync(int productId)
+        => await SendRequestAsync<SellasistProductResponse>($"products/{productId}", HttpMethod.Get);
+
+    // === CATEGORIES ===
+
+    public async Task<List<SellasistCategoryResponse>> GetCategoriesAsync(int limit = 500)
+    {
+        var all = new List<SellasistCategoryResponse>();
+        int offset = 0;
+        bool hasMore = true;
+
+        while (hasMore)
+        {
+            var batch = await SendRequestAsync<List<SellasistCategoryResponse>>(
+                $"categories?offset={offset}&limit={limit}", HttpMethod.Get);
+
+            if (batch is { Count: > 0 })
+            {
+                all.AddRange(batch);
+                offset += limit;
+                if (batch.Count < limit) hasMore = false;
+            }
+            else hasMore = false;
+        }
+        return all;
+    }
+
+    public async Task<SellasistCategoryDetailResponse?> GetCategoryAsync(int categoryId)
+        => await SendRequestAsync<SellasistCategoryDetailResponse>($"categories/{categoryId}", HttpMethod.Get);
 }

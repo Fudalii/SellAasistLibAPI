@@ -4,6 +4,9 @@ namespace Sellasist.Interfaces;
 
 public interface ISellasistService
 {
+    /// <summary>Ustawia konfiguracje dynamicznie (np. z bazy danych). Nadpisuje config z DI.</summary>
+    void Configure(Sellasist.Config.SellasistConfig newConfig);
+
     // Orders
     Task<SellasistOrderResponse?> GetOrderAsync(int orderId);
     Task<List<SellasistOrderResponse>> GetOrdersByStatusAsync(int statusId, int limit = 50);
@@ -20,4 +23,18 @@ public interface ISellasistService
     // AWB / Shipments
     Task<bool> SubmitAwbAsync(SellasistAddAwbRequest request);
     Task<List<SellasistShipmentDto>> GetOrderShipmentsAsync(int orderId);
+
+    // Products
+    /// <summary>Pobiera liste produktow z /products_bulk (paginacja po 500).</summary>
+    Task<List<SellasistProductBulkItem>> GetProductsBulkAsync(int limit = 500);
+
+    /// <summary>Pobiera szczegoly produktu z /products/{productId}.</summary>
+    Task<SellasistProductResponse?> GetProductAsync(int productId);
+
+    // Categories
+    /// <summary>Pobiera liste kategorii z /categories (paginacja po 500).</summary>
+    Task<List<SellasistCategoryResponse>> GetCategoriesAsync(int limit = 500);
+
+    /// <summary>Pobiera szczegoly kategorii z /categories/{id}.</summary>
+    Task<SellasistCategoryDetailResponse?> GetCategoryAsync(int categoryId);
 }
