@@ -210,4 +210,26 @@ public class SellasistService(IHttpClientFactory httpClientFactory, SellasistCon
 
     public async Task<SellasistCategoryDetailResponse?> GetCategoryAsync(int categoryId)
         => await SendRequestAsync<SellasistCategoryDetailResponse>($"categories/{categoryId}", HttpMethod.Get);
+
+    public async Task<List<SellasistManufacturerResponse>> GetManufacturersAsync(int limit = 500)
+    {
+        var all = new List<SellasistManufacturerResponse>();
+        int offset = 0;
+        bool hasMore = true;
+
+        while (hasMore)
+        {
+            var batch = await SendRequestAsync<List<SellasistManufacturerResponse>>(
+                $"manufacturers?offset={offset}&limit={limit}", HttpMethod.Get);
+
+            if (batch is { Count: > 0 })
+            {
+                all.AddRange(batch);
+                offset += limit;
+                if (batch.Count < limit) hasMore = false;
+            }
+            else hasMore = false;
+        }
+        return all;
+    }
 }

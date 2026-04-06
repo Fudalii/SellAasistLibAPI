@@ -37,4 +37,8 @@ public interface ISellasistService
 
     /// <summary>Pobiera szczegoly kategorii z /categories/{id}.</summary>
     Task<SellasistCategoryDetailResponse?> GetCategoryAsync(int categoryId);
+
+    // Manufacturers
+    /// <summary>Pobiera liste producentow z /manufacturers (paginacja po 500).</summary>
+    Task<List<SellasistManufacturerResponse>> GetManufacturersAsync(int limit = 500);
 }
