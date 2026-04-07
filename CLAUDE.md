@@ -72,6 +72,9 @@ SendRequestAsync<T>(HttpMethod, string endpoint, object? body = null)
 - `GetCategoriesAsync(int limit = 500)` — lista kategorii, paginacja auto-batch
 - `GetCategoryAsync(int categoryId)` — szczegóły kategorii z `/categories/{id}`. Nazwa w `Languages[0].Title`
 
+**Producenci (manufacturers):**
+- `GetManufacturersAsync(int limit = 500)` — lista producentów z `/manufacturers`, paginacja auto-batch. Zwraca `SellasistManufacturerResponse` (id, title)
+
 ## Kluczowe DTO
 
 | DTO | Opis |
@@ -85,6 +88,7 @@ SendRequestAsync<T>(HttpMethod, string endpoint, object? body = null)
 | `SellasistProductResponse` | Szczegóły produktu: opis (datacells), kategorie, zdjęcia, cena promo |
 | `SellasistCategoryResponse` | Kategoria z listy: id, parent, title |
 | `SellasistCategoryDetailResponse` | Szczegóły kategorii: Languages z tytułami |
+| `SellasistManufacturerResponse` | Producent: id, title |
 
 ## Zależności
 
@@ -104,6 +108,7 @@ Target framework: `.NET 10.0`
 
 ## Kontekst integracji z B2B
 
-Ta library jest konsumowana przez projekt `B2B` (`d:\Claude\B2B\src`) — używana w warstwie `B2B.Infrastructure` do:
-- **Importu produktów** — `SellasistProductImportSource` (adapter pattern) pobiera produkty, kategorie i zdjęcia z Sellasist do lokalnej bazy B2B
+Ta library jest konsumowana przez projekt `B2B` (`d:\Claude\B2B`) — używana w warstwie `B2B.Infrastructure` do:
+- **Importu produktów** — `SellasistProductImportSource` (adapter pattern) pobiera produkty, kategorie, producentów i zdjęcia z Sellasist do lokalnej bazy B2B
+- **Importu producentów** — `GetManufacturersAsync()` + mapowanie `manufacturer_id` z produktu na `ProducerId` w B2B z deduplikacją po `NormalizedName`
 - **Synchronizacji zamówień** — statusy i przesyłki między systemem B2B a platformą Sellasist
