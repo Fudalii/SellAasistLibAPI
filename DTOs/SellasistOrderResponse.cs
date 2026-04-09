@@ -7,7 +7,7 @@ public class SellasistOrderResponse
     [JsonPropertyName("id")] public int Id { get; set; }
     [JsonPropertyName("email")] public string? Email { get; set; }
     [JsonPropertyName("date")] public string? Date { get; set; }
-    [JsonPropertyName("status")] public int Status { get; set; }
+    [JsonPropertyName("status")] public SellasistStatusInfo? Status { get; set; }
     [JsonPropertyName("comment")] public string? Comment { get; set; }
     [JsonPropertyName("shipment_address")] public SellasistAddress? ShipmentAddress { get; set; }
     [JsonPropertyName("bill_address")] public SellasistAddress? BillAddress { get; set; }
@@ -44,10 +44,10 @@ public class SellasistCartItem
 {
     [JsonPropertyName("id")] public int Id { get; set; }
     [JsonPropertyName("name")] public string? Name { get; set; }
-    [JsonPropertyName("quantity")] public int Quantity { get; set; }
+    [JsonPropertyName("quantity")] public decimal Quantity { get; set; }
     [JsonPropertyName("weight")] public decimal Weight { get; set; }
     [JsonPropertyName("price")] public decimal Price { get; set; }
-    [JsonPropertyName("ean")] public long Ean { get; set; }
+    [JsonPropertyName("ean")] public string? Ean { get; set; }
     [JsonPropertyName("symbol")] public string? Symbol { get; set; }
 }
 
@@ -55,13 +55,19 @@ public class SellasistShipmentInfo
 {
     [JsonPropertyName("total")] public string? Total { get; set; }
     [JsonPropertyName("name")] public string? Name { get; set; }
-    [JsonPropertyName("id")] public int Id { get; set; }
+    [JsonPropertyName("id")] public int? Id { get; set; }
 }
 
 public class SellasistAdditionalField
 {
     [JsonPropertyName("field_id")] public int FieldId { get; set; }
     [JsonPropertyName("field_value")] public string? FieldValue { get; set; }
+}
+
+public class SellasistStatusInfo
+{
+    [JsonPropertyName("id")] public int Id { get; set; }
+    [JsonPropertyName("name")] public string? Name { get; set; }
 }
 
 public class SellasistExternalData
