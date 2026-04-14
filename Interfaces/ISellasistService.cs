@@ -29,7 +29,13 @@ public interface ISellasistService
     Task<List<SellasistShipmentDto>> GetOrderShipmentsAsync(int orderId);
 
     // Products
-    /// <summary>Pobiera liste produktow z /products_bulk (paginacja po 500).</summary>
+    /// <summary>Aktualizuje stan magazynowy produktu (PUT /products/{productId}).</summary>
+    Task<bool> UpdateProductQuantityAsync(int productId, string quantity);
+
+    /// <summary>Masowa aktualizacja produktów (PUT /products_bulk). Max 999 na raz.</summary>
+    Task<SellasistProductBulkUpdateResponse?> UpdateProductsBulkAsync(List<SellasistProductBulkUpdateItem> items);
+
+    /// <summary>Pobiera liste produktow z /products_bulk (paginacja po 500). Szybka lista z ID produkty i podstawowymi danymi jak EAN, Symbol...</summary>
     Task<List<SellasistProductBulkItem>> GetProductsBulkAsync(int limit = 500);
 
     /// <summary>Pobiera szczegoly produktu z /products/{productId}.</summary>
