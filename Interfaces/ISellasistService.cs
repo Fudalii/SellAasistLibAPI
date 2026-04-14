@@ -7,6 +7,10 @@ public interface ISellasistService
     /// <summary>Ustawia konfiguracje dynamicznie (np. z bazy danych). Nadpisuje config z DI.</summary>
     void Configure(Sellasist.Config.SellasistConfig newConfig);
 
+    // Order creation
+    /// <summary>Tworzy zamówienie w Sellasist (POST /orders). Zwraca odpowiedź z ID lub status "exist" dla duplikatów.</summary>
+    Task<SellasistCreateOrderResponse?> CreateOrderAsync(SellasistCreateOrderRequest request);
+
     // Orders
     Task<SellasistOrderResponse?> GetOrderAsync(int orderId);
     Task<List<SellasistOrderResponse>> GetOrdersByStatusAsync(int statusId, int limit = 50);
@@ -41,4 +45,18 @@ public interface ISellasistService
     // Manufacturers
     /// <summary>Pobiera liste producentow z /manufacturers (paginacja po 500).</summary>
     Task<List<SellasistManufacturerResponse>> GetManufacturersAsync(int limit = 500);
+
+    // Statuses
+    /// <summary>Pobiera liste statusow zamowien z /statuses.</summary>
+    Task<List<SellasistStatusResponse>> GetOrderStatusesAsync();
+
+    /// <summary>Pobiera liste metod wysylki skonfigurowanych w sklepie Sellasist (/shipments).</summary>
+    Task<List<SellasistShipmentMethodResponse>> GetShipmentMethodsAsync();
+
+    /// <summary>Pobiera liste metod platnosci skonfigurowanych w sklepie Sellasist (/payments).</summary>
+    Task<List<SellasistPaymentMethodResponse>> GetPaymentMethodsAsync();
+
+    // Extra fields
+    /// <summary>Pobiera liste dodatkowych pól zamówień z /extra-fields.</summary>
+    Task<List<SellasistExtraFieldResponse>> GetExtraFieldsAsync();
 }

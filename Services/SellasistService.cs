@@ -72,6 +72,11 @@ public class SellasistService(IHttpClientFactory httpClientFactory, SellasistCon
         }
     }
 
+    // === ORDER CREATION ===
+
+    public async Task<SellasistCreateOrderResponse?> CreateOrderAsync(SellasistCreateOrderRequest request)
+        => await SendRequestAsync<SellasistCreateOrderResponse>("orders", HttpMethod.Post, request);
+
     // === ORDERS ===
 
     public async Task<SellasistOrderResponse?> GetOrderAsync(int orderId)
@@ -231,5 +236,31 @@ public class SellasistService(IHttpClientFactory httpClientFactory, SellasistCon
             else hasMore = false;
         }
         return all;
+    }
+
+    public async Task<List<SellasistStatusResponse>> GetOrderStatusesAsync()
+    {
+        var result = await SendRequestAsync<List<SellasistStatusResponse>>("statuses", HttpMethod.Get);
+        return result ?? new List<SellasistStatusResponse>();
+    }
+
+    public async Task<List<SellasistShipmentMethodResponse>> GetShipmentMethodsAsync()
+    {
+        var result = await SendRequestAsync<List<SellasistShipmentMethodResponse>>("shipments", HttpMethod.Get);
+        return result ?? new List<SellasistShipmentMethodResponse>();
+    }
+
+    public async Task<List<SellasistPaymentMethodResponse>> GetPaymentMethodsAsync()
+    {
+        var result = await SendRequestAsync<List<SellasistPaymentMethodResponse>>("payments", HttpMethod.Get);
+        return result ?? new List<SellasistPaymentMethodResponse>();
+    }
+
+    // === EXTRA FIELDS ===
+
+    public async Task<List<SellasistExtraFieldResponse>> GetExtraFieldsAsync()
+    {
+        var result = await SendRequestAsync<List<SellasistExtraFieldResponse>>("extra-fields", HttpMethod.Get);
+        return result ?? [];
     }
 }

@@ -13,8 +13,21 @@ public class SellasistOrderResponse
     [JsonPropertyName("bill_address")] public SellasistAddress? BillAddress { get; set; }
     [JsonPropertyName("carts")] public List<SellasistCartItem>? Carts { get; set; }
     [JsonPropertyName("shipment")] public SellasistShipmentInfo? Shipment { get; set; }
+    [JsonPropertyName("payment")] public SellasistPaymentInfo? Payment { get; set; }
     [JsonPropertyName("additional_fields")] public List<SellasistAdditionalField>? AdditionalFields { get; set; }
     [JsonPropertyName("external_data")] public SellasistExternalData? ExternalData { get; set; }
+}
+
+public class SellasistPaymentInfo
+{
+    [JsonPropertyName("id")] public string? Id { get; set; }
+    [JsonPropertyName("name")] public string? Name { get; set; }
+    [JsonPropertyName("paid")] public string? Paid { get; set; }
+    [JsonPropertyName("paid_date")] public string? PaidDate { get; set; }
+    [JsonPropertyName("cod")] public int Cod { get; set; }
+    [JsonPropertyName("status")] public string? Status { get; set; }
+    [JsonPropertyName("currency")] public string? Currency { get; set; }
+    [JsonPropertyName("tax")] public string? Tax { get; set; }
 }
 
 public class SellasistAddress

@@ -10,4 +10,16 @@ public class SellasistProductBulkItem
     public string? PricePromo { get; set; }
     public string? Quantity { get; set; }
     public bool Archived { get; set; }
+
+    /// <summary>Kod EAN produktu.</summary>
+    public string? Ean { get; set; }
+
+    /// <summary>Numer katalogowy.</summary>
+    public string? CatalogNumber { get; set; }
+
+    /// <summary>Symbol produktu.</summary>
+    public string? Symbol { get; set; }
+
+    /// <summary>Lokalizacja produktu w magazynie.</summary>
+    public string? Location { get; set; }
 }

@@ -75,6 +75,9 @@ SendRequestAsync<T>(HttpMethod, string endpoint, object? body = null)
 **Producenci (manufacturers):**
 - `GetManufacturersAsync(int limit = 500)` — lista producentów z `/manufacturers`, paginacja auto-batch. Zwraca `SellasistManufacturerResponse` (id, title)
 
+**Statusy zamówień:**
+- `GetOrderStatusesAsync()` — lista statusów zamówień z `/statuses`. Pojedyncze żądanie (bez paginacji). Zwraca `SellasistStatusResponse` (id, name). Używane przez consumerów do mapowania własnych statusów B2B → Sellasist przy push zamówień.
+
 ## Kluczowe DTO
 
 | DTO | Opis |
@@ -89,6 +92,7 @@ SendRequestAsync<T>(HttpMethod, string endpoint, object? body = null)
 | `SellasistCategoryResponse` | Kategoria z listy: id, parent, title |
 | `SellasistCategoryDetailResponse` | Szczegóły kategorii: Languages z tytułami |
 | `SellasistManufacturerResponse` | Producent: id, title |
+| `SellasistStatusResponse` | Status zamówienia: id (int), name (string) |
 
 ## Zależności
 
