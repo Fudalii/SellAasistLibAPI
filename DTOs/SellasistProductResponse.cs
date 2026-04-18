@@ -21,6 +21,8 @@ public class SellasistProductResponse
     public string? Status { get; set; }
     public string? CategoryId { get; set; }
     public string? ManufacturerId { get; set; }
+    /// <summary>"1"/"true" = produkt jest zestawem (sklada sie z innych produktow). Pole "as_set" w API — Sellasist zwraca jako string.</summary>
+    public string? AsSet { get; set; }
     public List<SellasistProductImage>? Images { get; set; }
     /// <summary>Kategorie produktu (embedded array z id/title/parent).</summary>
     public List<SellasistProductCategory>? Categories { get; set; }

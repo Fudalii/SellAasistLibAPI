@@ -11,10 +11,17 @@ public interface ISellasistService
     /// <summary>Tworzy zamówienie w Sellasist (POST /orders). Zwraca odpowiedź z ID lub status "exist" dla duplikatów.</summary>
     Task<SellasistCreateOrderResponse?> CreateOrderAsync(SellasistCreateOrderRequest request);
 
+    /// <summary>Tworzy zamówienie z pełną diagnostyką HTTP — zwraca status code, raw body oraz parsed response.
+    /// Używane gdy potrzebna pełna diagnostyka błędu (np. zapis do audit log).</summary>
+    Task<(int StatusCode, string RawBody, SellasistCreateOrderResponse? Parsed)> CreateOrderRawAsync(SellasistCreateOrderRequest request);
+
     // Orders
     Task<SellasistOrderResponse?> GetOrderAsync(int orderId);
     Task<List<SellasistOrderResponse>> GetOrdersByStatusAsync(int statusId, int limit = 50);
     Task<List<SellasistOrderResponse>> GetOrdersWithCartsAsync(int statusId, int limit = 50);
+
+    /// <summary>Pobiera zamówienia zmienione od daty dateFrom (paginacja po limit). Używane do synchronizacji statusów SA → B2B.</summary>
+    Task<List<SellasistOrderResponse>> GetOrdersAsync(DateTime dateFrom, int limit = 50);
 
     // Order updates
     Task<bool> UpdateOrderStatusAsync(int orderId, int statusId);
@@ -23,6 +30,27 @@ public interface ISellasistService
     Task<bool> UpdatePaymentStatusAsync(int orderId, string status);
     Task<bool> SendShipmentCostAsync(int orderId, string cost);
     Task<bool> UpdateOrderTotalAsync(int orderId, string total);
+
+    /// <summary>Aktualizuje dane adresowe dokumentu sprzedaży (bill_address) na zamówieniu</summary>
+    Task<bool> UpdateOrderBillAddressAsync(int orderId, SellasistUpdateBillAddressRequest address);
+
+    /// <summary>Generyczny PUT /orders/{id} z obiektem — dowolne pola (bill_address, shipment_address, shipment_price,
+    /// status, payment_status, paid, itp.). Uzywane przez sync B2B → Sellasist po edycji zamowienia w adminie.</summary>
+    Task<bool> UpdateOrderAsync(int orderId, object body);
+
+    // Order lines
+
+    /// <summary>POST /orders_lines — dodaje nowa linie do istniejacego zamowienia. Zwraca ID nowej linii
+    /// lub null przy bledzie. Uzywane do synchronizacji B2B: gdy admin doda produkt do juz-wyslanego zamowienia.</summary>
+    Task<SellasistCreateOrderLineResponse?> CreateOrderLineAsync(SellasistOrderLineRequest request);
+
+    /// <summary>PUT /orders_lines/{lineId} — aktualizuje istniejaca linie (quantity, price, name, itp.).
+    /// Uzywane do synchronizacji B2B: gdy admin zmieni ilosc lub cene pozycji w juz-wyslanym zamowieniu.</summary>
+    Task<bool> UpdateOrderLineAsync(int lineId, SellasistOrderLineRequest request);
+
+    /// <summary>DELETE /orders_lines/{lineId} — usuwa linie z zamowienia. Uzywane do synchronizacji B2B:
+    /// gdy admin usunie pozycje z juz-wyslanego zamowienia.</summary>
+    Task<bool> DeleteOrderLineAsync(int lineId);
 
     // AWB / Shipments
     Task<bool> SubmitAwbAsync(SellasistAddAwbRequest request);

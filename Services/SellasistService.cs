@@ -77,6 +77,39 @@ public class SellasistService(IHttpClientFactory httpClientFactory, SellasistCon
     public async Task<SellasistCreateOrderResponse?> CreateOrderAsync(SellasistCreateOrderRequest request)
         => await SendRequestAsync<SellasistCreateOrderResponse>("orders", HttpMethod.Post, request);
 
+    public async Task<(int StatusCode, string RawBody, SellasistCreateOrderResponse? Parsed)> CreateOrderRawAsync(SellasistCreateOrderRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(_config.ApiToken))
+        {
+            logger.LogError("Sellasist API token is empty");
+            return (0, "(API token is empty)", null);
+        }
+
+        var url = $"{_config.BaseUrl}/orders";
+        using var httpRequest = new HttpRequestMessage(HttpMethod.Post, url);
+        httpRequest.Headers.Add("apiKey", _config.ApiToken);
+        httpRequest.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+        var requestJson = JsonSerializer.Serialize(request, JsonOptions);
+        httpRequest.Content = new StringContent(requestJson, Encoding.UTF8, "application/json");
+
+        using var client = httpClientFactory.CreateClient("SellasistApi");
+        using var response = await client.SendAsync(httpRequest);
+        var body = await response.Content.ReadAsStringAsync();
+
+        SellasistCreateOrderResponse? parsed = null;
+        if (response.IsSuccessStatusCode)
+        {
+            try { parsed = JsonSerializer.Deserialize<SellasistCreateOrderResponse>(body, JsonOptions); }
+            catch (Exception ex) { logger.LogError(ex, "Failed to deserialize Sellasist CreateOrder response"); }
+        }
+        else
+        {
+            logger.LogWarning("Sellasist POST /orders failed: {Status} {Body}", (int)response.StatusCode, body);
+        }
+
+        return ((int)response.StatusCode, body, parsed);
+    }
+
     // === ORDERS ===
 
     public async Task<SellasistOrderResponse?> GetOrderAsync(int orderId)
@@ -126,6 +159,29 @@ public class SellasistService(IHttpClientFactory httpClientFactory, SellasistCon
         return all;
     }
 
+    public async Task<List<SellasistOrderResponse>> GetOrdersAsync(DateTime dateFrom, int limit = 50)
+    {
+        var all = new List<SellasistOrderResponse>();
+        int offset = 0;
+        bool hasMore = true;
+        var dateFromStr = dateFrom.ToString("yyyy-MM-dd");
+
+        while (hasMore)
+        {
+            var batch = await SendRequestAsync<List<SellasistOrderResponse>>(
+                $"orders?offset={offset}&limit={limit}&date_from={dateFromStr}", HttpMethod.Get);
+
+            if (batch is { Count: > 0 })
+            {
+                all.AddRange(batch);
+                offset += limit;
+                if (batch.Count < limit) hasMore = false;
+            }
+            else hasMore = false;
+        }
+        return all;
+    }
+
     // === ORDER UPDATES ===
 
     public async Task<bool> UpdateOrderStatusAsync(int orderId, int statusId)
@@ -146,6 +202,23 @@ public class SellasistService(IHttpClientFactory httpClientFactory, SellasistCon
 
     public async Task<bool> UpdateOrderTotalAsync(int orderId, string total)
         => await SendRequestAsync<bool>($"orders/{orderId}", HttpMethod.Put, new { total });
+
+    public async Task<bool> UpdateOrderBillAddressAsync(int orderId, SellasistUpdateBillAddressRequest address)
+        => await SendRequestAsync<bool>($"orders/{orderId}", HttpMethod.Put, new { bill_address = address });
+
+    public async Task<bool> UpdateOrderAsync(int orderId, object body)
+        => await SendRequestAsync<bool>($"orders/{orderId}", HttpMethod.Put, body);
+
+    // === ORDER LINES ===
+
+    public async Task<SellasistCreateOrderLineResponse?> CreateOrderLineAsync(SellasistOrderLineRequest request)
+        => await SendRequestAsync<SellasistCreateOrderLineResponse>("orders_lines", HttpMethod.Post, request);
+
+    public async Task<bool> UpdateOrderLineAsync(int lineId, SellasistOrderLineRequest request)
+        => await SendRequestAsync<bool>($"orders_lines/{lineId}", HttpMethod.Put, request);
+
+    public async Task<bool> DeleteOrderLineAsync(int lineId)
+        => await SendRequestAsync<bool>($"orders_lines/{lineId}", HttpMethod.Delete);
 
     // === AWB / SHIPMENTS ===
 
@@ -266,7 +339,7 @@ public class SellasistService(IHttpClientFactory httpClientFactory, SellasistCon
 
     public async Task<List<SellasistExtraFieldResponse>> GetExtraFieldsAsync()
     {
-        var result = await SendRequestAsync<List<SellasistExtraFieldResponse>>("extra-fields", HttpMethod.Get);
+        var result = await SendRequestAsync<List<SellasistExtraFieldResponse>>("orders_fields", HttpMethod.Get);
         return result ?? [];
     }
 }
