@@ -30,7 +30,16 @@
       "Bash(claude mcp:*)",
       "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(json.dumps\\(d.get\\('mcpServers',{}\\), indent=2\\)\\)\")",
       "Read(//c/Users/Fudal/**)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(taskkill *)",
+      "Bash(dotnet publish *)",
+      "Bash(C:/Program Files/IIS/Microsoft Web Deploy V3/msdeploy.exe *)",
+      "Bash(rm \"D:/Claude/publish-temp/b2b/appsettings.json\" \"D:/Claude/publish-temp/b2b/appsettings.Development.json\")",
+      "Bash(rm -rf C:/Temp/b2b-deploy)",
+      "Bash(cp -r \"D:/Claude/publish-temp/b2b/.\" C:/Temp/b2b-deploy/)",
+      "Bash('C:/Program Files/IIS/Microsoft Web Deploy V3/msdeploy.exe' -verb:sync -source:contentPath=C:/Temp/b2b-deploy '-dest:contentPath=site63943,computerName=https://site63943.siteasp.net:8172/msdeploy.axd?site=site63943,userName=site63943,password=nL=3W-2yi8Y@,authType=Basic,includeAcls=False' -allowUntrusted -enableRule:AppOffline)",
+      "Bash(xargs head *)",
+      "Bash(xargs -I {} basename {})"
     ]
   }
 }
