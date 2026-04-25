@@ -1,3 +1,4 @@
+using System.Net;
 using System.Net.Http.Headers;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -53,6 +54,16 @@ public class SellasistOrderLogsService(
 
         if (!response.IsSuccessStatusCode)
         {
+            // Sellasist zwraca 404 z body {"code":404,"error":"No records found"} gdy w oknie czasowym
+            // nie ma żadnych logów dla danego tagu — to semantycznie pusta lista, nie błąd. Konsument
+            // (polling worker) potrzebuje odróżnić "brak rekordów" (OK, aktualizuj LastCheckedAt) od
+            // prawdziwego błędu (zachowaj LastCheckedAt i spróbuj ponownie).
+            if (response.StatusCode == HttpStatusCode.NotFound
+                && responseContent.Contains("No records found", StringComparison.OrdinalIgnoreCase))
+            {
+                return [];
+            }
+
             logger.LogWarning("Sellasist GET /orders_logs failed (tag={Tag}, dateFrom={DateFrom}): {Status} {Body}",
                 operationTag, dateFromStr, (int)response.StatusCode, responseContent);
             return null;

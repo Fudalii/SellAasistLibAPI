@@ -39,7 +39,9 @@
       "Bash(cp -r \"D:/Claude/publish-temp/b2b/.\" C:/Temp/b2b-deploy/)",
       "Bash('C:/Program Files/IIS/Microsoft Web Deploy V3/msdeploy.exe' -verb:sync -source:contentPath=C:/Temp/b2b-deploy '-dest:contentPath=site63943,computerName=https://site63943.siteasp.net:8172/msdeploy.axd?site=site63943,userName=site63943,password=nL=3W-2yi8Y@,authType=Basic,includeAcls=False' -allowUntrusted -enableRule:AppOffline)",
       "Bash(xargs head *)",
-      "Bash(xargs -I {} basename {})"
+      "Bash(xargs -I {} basename {})",
+      "Bash(git remote *)",
+      "Bash(git push *)"
     ]
   }
 }
