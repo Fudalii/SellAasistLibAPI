@@ -9,7 +9,7 @@ public class SellasistCreateOrderRequest
     public string? Id { get; set; }
 
     [JsonPropertyName("currency")]
-    public string Currency { get; set; } = "pln";
+    public string Currency { get; set; } = "PLN";
 
     [JsonPropertyName("payment_status")]
     public string PaymentStatus { get; set; } = "unpaid";
@@ -58,6 +58,9 @@ public class SellasistCreateOrderRequest
 
     [JsonPropertyName("pickup_point")]
     public SellasistCreateOrderPickupPoint? PickupPoint { get; set; }
+
+    [JsonPropertyName("additional_fields")]
+    public List<SellasistFieldUpdate>? AdditionalFields { get; set; }
 }
 
 /// <summary>Adres w zamówieniu Sellasist (faktura lub wysyłka).</summary>
