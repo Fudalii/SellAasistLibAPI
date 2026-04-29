@@ -100,8 +100,10 @@ public class SellasistCreateOrderAddress
 /// <summary>Pozycja koszyka w zamówieniu Sellasist.</summary>
 public class SellasistCreateOrderCartItem
 {
+    /// <summary>ID produktu w Sellasist. Null → pole pominięte w JSON (pozycja bez powiązania z kartoteką).</summary>
     [JsonPropertyName("product_id")]
-    public int ProductId { get; set; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? ProductId { get; set; }
 
     [JsonPropertyName("variant_id")]
     public int? VariantId { get; set; }
