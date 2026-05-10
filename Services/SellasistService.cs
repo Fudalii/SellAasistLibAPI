@@ -25,6 +25,29 @@ public class SellasistService(IHttpClientFactory httpClientFactory, SellasistCon
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
     };
 
+    // Throttle — minimum odstęp między requestami (config.MinDelayBetweenRequestsMs).
+    // _nextAllowedRequestUtc to „następny dozwolony moment" — każdy call go aktualizuje rezerwując
+    // sobie okno (now+delay). Dzięki temu equal-tempo nawet przy concurrent calls.
+    private readonly object _throttleLock = new();
+    private DateTime _nextAllowedRequestUtc = DateTime.MinValue;
+
+    private async Task ApplyThrottleAsync()
+    {
+        var delayMs = _config.MinDelayBetweenRequestsMs;
+        if (delayMs <= 0) return;
+
+        int waitMs;
+        lock (_throttleLock)
+        {
+            var now = DateTime.UtcNow;
+            var earliest = now < _nextAllowedRequestUtc ? _nextAllowedRequestUtc : now;
+            waitMs = (int)(earliest - now).TotalMilliseconds;
+            _nextAllowedRequestUtc = earliest.AddMilliseconds(delayMs);
+        }
+        if (waitMs > 0)
+            await Task.Delay(waitMs);
+    }
+
     // === CORE METHOD ===
 
     private async Task<T?> SendRequestAsync<T>(string endpoint, HttpMethod method, object? body = null)
@@ -34,6 +57,8 @@ public class SellasistService(IHttpClientFactory httpClientFactory, SellasistCon
             logger.LogError("Sellasist API token is empty");
             return default;
         }
+
+        await ApplyThrottleAsync();
 
         var url = $"{_config.BaseUrl}/{endpoint}";
 
@@ -53,8 +78,13 @@ public class SellasistService(IHttpClientFactory httpClientFactory, SellasistCon
 
         if (!response.IsSuccessStatusCode)
         {
-            logger.LogWarning("Sellasist {Method} /{Endpoint} failed: {Status} {Body}",
-                method.Method, endpoint, (int)response.StatusCode, responseContent);
+            // 404 dla zasobów listowych w Sellasist znaczy „brak rekordów" — to nie błąd, tylko pusta lista.
+            // Nie logujemy warningu, żeby nie zaśmiecać logów (np. /ordersshipments dla świeżego zamówienia).
+            if (response.StatusCode != System.Net.HttpStatusCode.NotFound)
+            {
+                logger.LogWarning("Sellasist {Method} /{Endpoint} failed: {Status} {Body}",
+                    method.Method, endpoint, (int)response.StatusCode, responseContent);
+            }
             return default;
         }
 
@@ -84,6 +114,8 @@ public class SellasistService(IHttpClientFactory httpClientFactory, SellasistCon
             logger.LogError("Sellasist API token is empty");
             return (0, "(API token is empty)", null);
         }
+
+        await ApplyThrottleAsync();
 
         var url = $"{_config.BaseUrl}/orders";
         using var httpRequest = new HttpRequestMessage(HttpMethod.Post, url);

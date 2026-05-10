@@ -147,6 +147,10 @@ Ta library jest konsumowana przez projekt `B2B` (`d:\Claude\B2B`) — używana w
 
 ## Diagnostyka
 
-`SendRequestAsync<T>` loguje przy `!IsSuccessStatusCode`: `LogWarning("Sellasist {Method} /{Endpoint} failed: {Status} {Body}")`. Przy deserialization fail: `LogError`. Zwraca `default(T)` (null) — consumer musi to obsłużyć.
+`SendRequestAsync<T>` loguje przy `!IsSuccessStatusCode` z **wyjątkiem 404**: `LogWarning("Sellasist {Method} /{Endpoint} failed: {Status} {Body}")`. Zwraca `default(T)` (null) — consumer musi to obsłużyć.
+
+**404 nie jest logowane** — Sellasist używa `404 {"code":404,"error":"No records found"}` jako poprawnej odpowiedzi dla list pustych (np. `/ordersshipments?order_id=X` dla zamówienia bez przesyłek). Bez tej reguły każde świeżo utworzone zamówienie generowało Warning w logach DB konsumenta (`BaselinkerToSellasist.Connector` → tabela `SystemLogs` zaśmiecana). Dla 5xx + 4xx innych niż 404 (np. 401 unauthorized) logujemy normalnie.
+
+Przy deserialization fail: `LogError`. Zwraca `default(T)` (null).
 
 Dla krytycznych operacji (tworzenie zamówień) użyj `CreateOrderRawAsync` — zwraca raw body + status code, które consumer zapisuje w audit log (w B2B: `AuditLog.Payload` nvarchar max). Pozwala na debug bez reprodukcji: payload z requestem/response/stack trace'em kopiowany ze strony `/admin/orders/{id}` w modalu "Szczegoly".
