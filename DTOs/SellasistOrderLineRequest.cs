@@ -41,6 +41,11 @@ public class SellasistOrderLineRequest
     /// <summary>Wybrane opcje produktu (np. rozmiar, kolor) — B2B nie uzywa.</summary>
     [JsonPropertyName("selected_options")]
     public string? SelectedOptions { get; set; }
+
+    /// <summary>Stawka VAT w procentach (np. 23, 8, 0). Nullable — pomijane w JSON gdy null
+    /// (JsonIgnoreCondition.WhenWritingNull). Używane przy reguły ustawiającej VAT 0% na pozycji.</summary>
+    [JsonPropertyName("tax")]
+    public int? Tax { get; set; }
 }
 
 /// <summary>Odpowiedz POST /orders_lines — zwraca id nowej linii.</summary>

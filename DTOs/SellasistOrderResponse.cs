@@ -56,12 +56,30 @@ public class SellasistCountry
 public class SellasistCartItem
 {
     [JsonPropertyName("id")] public int Id { get; set; }
+
+    /// <summary>Identyfikator linii zamówienia używany w PUT /orders_lines/{lineId}. W odpowiedzi GET /orders/{id}
+    /// pole występuje obok `id` (zwykle ta sama wartość, ale traktować jako semantycznie odrębne).</summary>
+    [JsonPropertyName("line_id")] public int? LineId { get; set; }
+
+    /// <summary>ID produktu w Sellasist — wymagane przy PUT /orders_lines/{lineId} (rebuild request).</summary>
+    [JsonPropertyName("product_id")] public int? ProductId { get; set; }
+
+    /// <summary>ID wariantu produktu (jeśli pozycja używa wariantu) — null gdy produkt bez wariantów.</summary>
+    [JsonPropertyName("variant_id")] public int? VariantId { get; set; }
+
     [JsonPropertyName("name")] public string? Name { get; set; }
     [JsonPropertyName("quantity")] public decimal Quantity { get; set; }
     [JsonPropertyName("weight")] public decimal Weight { get; set; }
+
+    /// <summary>Cena jednostkowa brutto.</summary>
     [JsonPropertyName("price")] public decimal Price { get; set; }
+
     [JsonPropertyName("ean")] public string? Ean { get; set; }
     [JsonPropertyName("symbol")] public string? Symbol { get; set; }
+
+    /// <summary>Stawka VAT pozycji jako string (np. "23.000", "8.000", "0.000"). Parsować przez
+    /// <c>decimal.Parse(InvariantCulture)</c> w konsumencie — Sellasist zwraca string z 3 miejscami po przecinku.</summary>
+    [JsonPropertyName("tax_rate")] public string? TaxRate { get; set; }
 }
 
 public class SellasistShipmentInfo
