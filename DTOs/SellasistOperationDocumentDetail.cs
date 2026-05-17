@@ -2,7 +2,10 @@ using System.Text.Json.Serialization;
 
 namespace Sellasist.DTOs;
 
-/// <summary>Szczegóły dokumentu magazynowego z GET /operationdocuments/{id} — zawiera listę linii produktów.</summary>
+/// <summary>Szczegóły dokumentu magazynowego z GET /operationdocuments/{id} — zawiera listę linii
+/// produktów + adresy buyer/receiver/supplier. UWAGA: Sellasist zwraca tablicę 1-elementową
+/// <c>[{...}]</c> zamiast pojedynczego obiektu — deserializacja przez <see cref="SellasistService"/>
+/// musi obsłużyć ten kształt (deserialize jako List i wziąć FirstOrDefault).</summary>
 public class SellasistOperationDocumentDetail
 {
     /// <summary>ID dokumentu.</summary>
@@ -10,100 +13,84 @@ public class SellasistOperationDocumentDetail
     [JsonNumberHandling(JsonNumberHandling.AllowReadingFromString)]
     public int Id { get; set; }
 
-    /// <summary>Numer dokumentu (np. "PZ/260/2026").</summary>
+    /// <summary>Numer dokumentu (np. "PZ/1/05/2026").</summary>
     [JsonPropertyName("number")]
     public string? Number { get; set; }
+
+    /// <summary>Niestandardowy numer (zwykle === Number).</summary>
+    [JsonPropertyName("custom_number")]
+    public string? CustomNumber { get; set; }
+
+    /// <summary>Data wystawienia (ISO "YYYY-MM-DD").</summary>
+    [JsonPropertyName("issue_date")]
+    public string? IssueDate { get; set; }
+
+    /// <summary>Data sprzedaży (ISO "YYYY-MM-DD").</summary>
+    [JsonPropertyName("sale_date")]
+    public string? SaleDate { get; set; }
 
     /// <summary>Typ ("stock").</summary>
     [JsonPropertyName("type")]
     public string? Type { get; set; }
 
-    /// <summary>Podtyp ("admission" dla PZ).</summary>
+    /// <summary>Podtyp ("admission" dla PZ, "release" dla WZ).</summary>
     [JsonPropertyName("subtype")]
     public string? Subtype { get; set; }
 
-    /// <summary>Status dokumentu.</summary>
-    [JsonPropertyName("status")]
-    public string? Status { get; set; }
+    /// <summary>Łączna wartość (może być 0 dla PZ wewnętrznych).</summary>
+    [JsonPropertyName("total")]
+    [JsonNumberHandling(JsonNumberHandling.AllowReadingFromString)]
+    public decimal? Total { get; set; }
 
-    /// <summary>Data wystawienia.</summary>
-    [JsonPropertyName("date")]
-    public string? Date { get; set; }
+    /// <summary>Waluta ("PLN").</summary>
+    [JsonPropertyName("currency")]
+    public string? Currency { get; set; }
 
-    /// <summary>Data utworzenia.</summary>
-    [JsonPropertyName("created_at")]
-    public string? CreatedAt { get; set; }
-
-    /// <summary>Kod kraju ISO numeric (np. 170 = PL).</summary>
-    [JsonPropertyName("country")]
-    public int? Country { get; set; }
-
-    /// <summary>NIP kontrahenta.</summary>
-    [JsonPropertyName("company_nip")]
-    public string? CompanyNip { get; set; }
-
-    /// <summary>Telefon kontrahenta.</summary>
-    [JsonPropertyName("phone")]
-    public string? Phone { get; set; }
-
-    /// <summary>Adres kupującego.</summary>
+    /// <summary>Adres kupującego (może być null dla PZ wewnętrznych).</summary>
     [JsonPropertyName("buyer_address")]
     public SellasistOperationDocumentAddress? BuyerAddress { get; set; }
 
-    /// <summary>Adres odbiorcy (magazyn docelowy).</summary>
+    /// <summary>Adres odbiorcy (zwykle nasz magazyn / firma sklepu).</summary>
     [JsonPropertyName("receiver_address")]
     public SellasistOperationDocumentAddress? ReceiverAddress { get; set; }
+
+    /// <summary>Adres dostawcy (firma od której otrzymujemy towar — relevant dla PZ).</summary>
+    [JsonPropertyName("supplier_address")]
+    public SellasistOperationDocumentAddress? SupplierAddress { get; set; }
+
+    /// <summary>Komentarze do dokumentu.</summary>
+    [JsonPropertyName("comments")]
+    public string? Comments { get; set; }
+
+    /// <summary>Czy dokument jest gotowy ("0"/"1" jako string).</summary>
+    [JsonPropertyName("is_ready")]
+    public string? IsReady { get; set; }
+
+    /// <summary>ID serii dokumentu.</summary>
+    [JsonPropertyName("series_id")]
+    public int? SeriesId { get; set; }
+
+    /// <summary>Seria dokumentu (id + nazwa, np. "PZ - Przyjęcie zewnętrzne").</summary>
+    [JsonPropertyName("series")]
+    public SellasistOperationDocumentSeries? Series { get; set; }
 
     /// <summary>Pozycje produktowe dokumentu.</summary>
     [JsonPropertyName("products")]
     public List<SellasistOperationDocumentProduct> Products { get; set; } = new();
 }
 
-/// <summary>Adres na dokumencie magazynowym (buyer_address lub receiver_address). Współdzielony przez
-/// SellasistOperationDocumentDetail (GET) oraz SellasistCreateOperationDocumentRequest (POST).</summary>
-public class SellasistOperationDocumentAddress
+/// <summary>Seria dokumentu magazynowego — Sellasist osadza tutaj id+nazwę. Przy tworzeniu PZ
+/// trzeba podać <see cref="Id"/> w request (pole series_id). Standardowo dla sklepu cvsklep id=6
+/// ("PZ - Przyjęcie zewnętrzne"); inne sklepy mogą mieć inną wartość — odczytujemy z pierwszego
+/// dokumentu na liście.</summary>
+public class SellasistOperationDocumentSeries
 {
-    /// <summary>Nazwa firmy.</summary>
-    [JsonPropertyName("company_name")]
-    public string? CompanyName { get; set; }
+    /// <summary>ID serii.</summary>
+    [JsonPropertyName("id")]
+    [JsonNumberHandling(JsonNumberHandling.AllowReadingFromString)]
+    public int Id { get; set; }
 
-    /// <summary>Imię osoby kontaktowej.</summary>
+    /// <summary>Nazwa serii (np. "PZ - Przyjęcie zewnętrzne").</summary>
     [JsonPropertyName("name")]
     public string? Name { get; set; }
-
-    /// <summary>Nazwisko osoby kontaktowej.</summary>
-    [JsonPropertyName("surname")]
-    public string? Surname { get; set; }
-
-    /// <summary>Ulica i numer domu (jeden string — Sellasist nie rozdziela dla operationdocuments).</summary>
-    [JsonPropertyName("street")]
-    public string? Street { get; set; }
-
-    /// <summary>Numer domu (opcjonalne — gdy Sellasist rozdziela).</summary>
-    [JsonPropertyName("home_number")]
-    public string? HomeNumber { get; set; }
-
-    /// <summary>Numer mieszkania (opcjonalne).</summary>
-    [JsonPropertyName("flat_number")]
-    public string? FlatNumber { get; set; }
-
-    /// <summary>Kod pocztowy.</summary>
-    [JsonPropertyName("postcode")]
-    public string? Postcode { get; set; }
-
-    /// <summary>Miasto.</summary>
-    [JsonPropertyName("city")]
-    public string? City { get; set; }
-
-    /// <summary>Telefon.</summary>
-    [JsonPropertyName("phone")]
-    public string? Phone { get; set; }
-
-    /// <summary>NIP firmy.</summary>
-    [JsonPropertyName("company_nip")]
-    public string? CompanyNip { get; set; }
-
-    /// <summary>Email.</summary>
-    [JsonPropertyName("email")]
-    public string? Email { get; set; }
 }

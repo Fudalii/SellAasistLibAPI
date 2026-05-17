@@ -385,8 +385,15 @@ public class SellasistService(IHttpClientFactory httpClientFactory, SellasistCon
         return result ?? [];
     }
 
+    /// <summary>Pobiera szczegóły dokumentu magazynowego. UWAGA: Sellasist API zwraca dla detail
+    /// TABLICĘ 1-elementową <c>[{...}]</c> zamiast pojedynczego obiektu — deserializujemy jako List
+    /// i bierzemy pierwszy element (FirstOrDefault).</summary>
     public async Task<SellasistOperationDocumentDetail?> GetOperationDocumentAsync(int documentId)
-        => await SendRequestAsync<SellasistOperationDocumentDetail>($"operationdocuments/{documentId}", HttpMethod.Get);
+    {
+        var list = await SendRequestAsync<List<SellasistOperationDocumentDetail>>(
+            $"operationdocuments/{documentId}", HttpMethod.Get);
+        return list?.FirstOrDefault();
+    }
 
     public async Task<SellasistCreateOperationDocumentResponse?> CreateOperationDocumentAsync(SellasistCreateOperationDocumentRequest request)
         => await SendRequestAsync<SellasistCreateOperationDocumentResponse>("operationdocuments", HttpMethod.Post, request);
