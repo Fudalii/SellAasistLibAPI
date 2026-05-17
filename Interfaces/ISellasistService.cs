@@ -107,4 +107,9 @@ public interface ISellasistService
     /// <summary>Tworzy nowy dokument magazynowy (POST /operationdocuments). Dla PZ ustaw Type="stock" i Subtype="admission".
     /// Zwraca odpowiedź z ID i numerem nadanym przez Sellasist.</summary>
     Task<SellasistCreateOperationDocumentResponse?> CreateOperationDocumentAsync(SellasistCreateOperationDocumentRequest request);
+
+    /// <summary>Aktualizuje istniejący dokument magazynowy (PUT /operationdocuments/{id}) z dowolnym
+    /// partial body. Używane np. do dodania pola <c>comments</c> po utworzeniu PZ (POST z comments
+    /// łamie parser Sellasist, ale PUT comments działa). Zwraca true gdy serwer odpowiedział "ok".</summary>
+    Task<bool> UpdateOperationDocumentAsync(int documentId, object body);
 }

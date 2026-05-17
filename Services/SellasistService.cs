@@ -397,4 +397,9 @@ public class SellasistService(IHttpClientFactory httpClientFactory, SellasistCon
 
     public async Task<SellasistCreateOperationDocumentResponse?> CreateOperationDocumentAsync(SellasistCreateOperationDocumentRequest request)
         => await SendRequestAsync<SellasistCreateOperationDocumentResponse>("operationdocuments", HttpMethod.Post, request);
+
+    /// <summary>PUT /operationdocuments/{id} — partial update. Sellasist akceptuje <c>{"comments":"..."}</c>
+    /// jako tagging dokumentu po utworzeniu (POST z comments łamie parser, ale PUT działa).</summary>
+    public async Task<bool> UpdateOperationDocumentAsync(int documentId, object body)
+        => await SendRequestAsync<bool>($"operationdocuments/{documentId}", HttpMethod.Put, body);
 }
