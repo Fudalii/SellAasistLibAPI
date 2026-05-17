@@ -374,4 +374,20 @@ public class SellasistService(IHttpClientFactory httpClientFactory, SellasistCon
         var result = await SendRequestAsync<List<SellasistExtraFieldResponse>>("orders_fields", HttpMethod.Get);
         return result ?? [];
     }
+
+    // === OPERATION DOCUMENTS (PZ, WZ) ===
+
+    public async Task<List<SellasistOperationDocumentListItem>> GetOperationDocumentsAsync(
+        string type = "stock", string subtype = "admission", string sort = "desc")
+    {
+        var result = await SendRequestAsync<List<SellasistOperationDocumentListItem>>(
+            $"operationdocuments?type={type}&subtype={subtype}&sort={sort}", HttpMethod.Get);
+        return result ?? [];
+    }
+
+    public async Task<SellasistOperationDocumentDetail?> GetOperationDocumentAsync(int documentId)
+        => await SendRequestAsync<SellasistOperationDocumentDetail>($"operationdocuments/{documentId}", HttpMethod.Get);
+
+    public async Task<SellasistCreateOperationDocumentResponse?> CreateOperationDocumentAsync(SellasistCreateOperationDocumentRequest request)
+        => await SendRequestAsync<SellasistCreateOperationDocumentResponse>("operationdocuments", HttpMethod.Post, request);
 }

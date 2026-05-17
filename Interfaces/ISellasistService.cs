@@ -93,4 +93,18 @@ public interface ISellasistService
     // Extra fields
     /// <summary>Pobiera liste dodatkowych pól zamówień z /extra-fields.</summary>
     Task<List<SellasistExtraFieldResponse>> GetExtraFieldsAsync();
+
+    // Operation documents (dokumenty magazynowe — PZ, WZ)
+
+    /// <summary>Pobiera listę dokumentów magazynowych (GET /operationdocuments). Dla PZ użyj domyślnych:
+    /// type="stock", subtype="admission". Sort "desc" zwraca najnowsze na górze.</summary>
+    Task<List<SellasistOperationDocumentListItem>> GetOperationDocumentsAsync(
+        string type = "stock", string subtype = "admission", string sort = "desc");
+
+    /// <summary>Pobiera szczegóły dokumentu magazynowego z listą pozycji produktowych (GET /operationdocuments/{id}).</summary>
+    Task<SellasistOperationDocumentDetail?> GetOperationDocumentAsync(int documentId);
+
+    /// <summary>Tworzy nowy dokument magazynowy (POST /operationdocuments). Dla PZ ustaw Type="stock" i Subtype="admission".
+    /// Zwraca odpowiedź z ID i numerem nadanym przez Sellasist.</summary>
+    Task<SellasistCreateOperationDocumentResponse?> CreateOperationDocumentAsync(SellasistCreateOperationDocumentRequest request);
 }
