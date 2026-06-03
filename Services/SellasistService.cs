@@ -297,6 +297,28 @@ public class SellasistService(IHttpClientFactory httpClientFactory, SellasistCon
         return all;
     }
 
+    public async Task<List<SellasistProductListItem>> GetProductsAsync(int limit = 100)
+    {
+        var all = new List<SellasistProductListItem>();
+        int offset = 0;
+        bool hasMore = true;
+
+        while (hasMore)
+        {
+            var batch = await SendRequestAsync<List<SellasistProductListItem>>(
+                $"products?offset={offset}&limit={limit}", HttpMethod.Get);
+
+            if (batch is { Count: > 0 })
+            {
+                all.AddRange(batch);
+                offset += limit;
+                if (batch.Count < limit) hasMore = false;
+            }
+            else hasMore = false;
+        }
+        return all;
+    }
+
     public async Task<SellasistProductResponse?> GetProductAsync(int productId)
         => await SendRequestAsync<SellasistProductResponse>($"products/{productId}", HttpMethod.Get);
 

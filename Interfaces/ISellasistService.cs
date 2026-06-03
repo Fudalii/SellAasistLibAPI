@@ -66,6 +66,10 @@ public interface ISellasistService
     /// <summary>Pobiera liste produktow z /products_bulk (paginacja po 500). Szybka lista z ID produkty i podstawowymi danymi jak EAN, Symbol...</summary>
     Task<List<SellasistProductBulkItem>> GetProductsBulkAsync(int limit = 500);
 
+    /// <summary>Pobiera liste produktow z /products (paginacja po 100 — limit endpointu). W odroznieniu
+    /// od /products_bulk zwraca takze <c>image_url</c> (miniature) — idealne do hurtowego cache zdjec.</summary>
+    Task<List<SellasistProductListItem>> GetProductsAsync(int limit = 100);
+
     /// <summary>Pobiera szczegoly produktu z /products/{productId}.</summary>
     Task<SellasistProductResponse?> GetProductAsync(int productId);
 
