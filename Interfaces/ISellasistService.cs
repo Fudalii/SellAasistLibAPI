@@ -57,6 +57,14 @@ public interface ISellasistService
     Task<List<SellasistShipmentDto>> GetOrderShipmentsAsync(int orderId);
 
     // Products
+    /// <summary>Tworzy nowy produkt w Sellasist (POST /products). Zwraca odpowiedź z nadanym ID.
+    /// Pole images[] przyjmuje URL-e zdjęć — Sellasist pobiera obrazy samodzielnie (base64 niepotrzebne).</summary>
+    Task<SellasistCreateProductResponse?> CreateProductAsync(SellasistCreateProductRequest request);
+
+    /// <summary>Dodaje zdjęcie do istniejącego produktu (POST /images). image_content w formacie
+    /// base64 "data:image/jpeg;base64,...". Fallback gdy URL zdjęcia nie jest publicznie dostępny dla Sellasist.</summary>
+    Task<SellasistCreateImageResponse?> AddProductImageAsync(SellasistCreateImageRequest request);
+
     /// <summary>Aktualizuje stan magazynowy produktu (PUT /products/{productId}).</summary>
     Task<bool> UpdateProductQuantityAsync(int productId, string quantity);
 

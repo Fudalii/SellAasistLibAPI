@@ -269,6 +269,12 @@ public class SellasistService(IHttpClientFactory httpClientFactory, SellasistCon
 
     // === PRODUCTS ===
 
+    public async Task<SellasistCreateProductResponse?> CreateProductAsync(SellasistCreateProductRequest request)
+        => await SendRequestAsync<SellasistCreateProductResponse>("products", HttpMethod.Post, request);
+
+    public async Task<SellasistCreateImageResponse?> AddProductImageAsync(SellasistCreateImageRequest request)
+        => await SendRequestAsync<SellasistCreateImageResponse>("images", HttpMethod.Post, request);
+
     public async Task<bool> UpdateProductQuantityAsync(int productId, string quantity)
         => await SendRequestAsync<bool>($"products/{productId}", HttpMethod.Put, new { quantity });
 
