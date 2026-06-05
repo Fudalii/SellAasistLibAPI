@@ -125,6 +125,11 @@ public class SellasistCreateOrderCartItem
 
     [JsonPropertyName("ean")]
     public string? Ean { get; set; }
+
+    /// <summary>Czy Sellasist ma zdjac stan magazynowy tego produktu przy tworzeniu zamowienia (1 = tak, 0 = nie). Null = pole pominiete w JSON (domyslne zachowanie Sellasist — bez redukcji). Ustaw 1 dla realnych zamowien, ktore maja zdejmowac stan.</summary>
+    [JsonPropertyName("stock_update")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? StockUpdate { get; set; }
 }
 
 /// <summary>Punkt odbioru (np. InPost paczkomat).</summary>
