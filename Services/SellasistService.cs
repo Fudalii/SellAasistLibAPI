@@ -278,6 +278,9 @@ public class SellasistService(IHttpClientFactory httpClientFactory, SellasistCon
     public async Task<bool> UpdateProductQuantityAsync(int productId, string quantity)
         => await SendRequestAsync<bool>($"products/{productId}", HttpMethod.Put, new { quantity });
 
+    public async Task<bool> UpdateProductAsync(int productId, object body)
+        => await SendRequestAsync<bool>($"products/{productId}", HttpMethod.Put, body);
+
     public async Task<SellasistProductBulkUpdateResponse?> UpdateProductsBulkAsync(List<SellasistProductBulkUpdateItem> items)
         => await SendRequestAsync<SellasistProductBulkUpdateResponse>("products_bulk", HttpMethod.Put, items);
 

@@ -68,6 +68,11 @@ public interface ISellasistService
     /// <summary>Aktualizuje stan magazynowy produktu (PUT /products/{productId}).</summary>
     Task<bool> UpdateProductQuantityAsync(int productId, string quantity);
 
+    /// <summary>Generyczny PUT /products/{id} z partial body — aktualizuje tylko podane pola produktu
+    /// (np. title, symbol, catalog, vat, manufacturer_id, description, images, status). Pola pominięte
+    /// pozostają bez zmian. Używane do aktualizacji istniejących produktów KQS→Sellasist (bez ceny/stanu).</summary>
+    Task<bool> UpdateProductAsync(int productId, object body);
+
     /// <summary>Masowa aktualizacja produktów (PUT /products_bulk). Max 999 na raz.</summary>
     Task<SellasistProductBulkUpdateResponse?> UpdateProductsBulkAsync(List<SellasistProductBulkUpdateItem> items);
 
