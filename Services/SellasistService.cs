@@ -434,4 +434,73 @@ public class SellasistService(IHttpClientFactory httpClientFactory, SellasistCon
     /// jako tagging dokumentu po utworzeniu (POST z comments łamie parser, ale PUT działa).</summary>
     public async Task<bool> UpdateOperationDocumentAsync(int documentId, object body)
         => await SendRequestAsync<bool>($"operationdocuments/{documentId}", HttpMethod.Put, body);
+
+    // === CLOUD PRINT ===
+    // Host i klucz Cloud Print są osobne od głównego API (klucz per stanowisko), więc te metody
+    // nie korzystają z _config.BaseUrl/_config.ApiToken — baseUrl i apiKey dostają jawnie.
+
+    public async Task<(int StatusCode, string RawBody)> PrintFileAsync(SellasistPrintFileRequest request, string baseUrl, string apiKey)
+    {
+        if (string.IsNullOrWhiteSpace(apiKey))
+        {
+            logger.LogError("Cloud Print API key is empty");
+            return (0, "(Cloud Print API key is empty)");
+        }
+        if (string.IsNullOrWhiteSpace(baseUrl))
+        {
+            logger.LogError("Cloud Print base URL is empty");
+            return (0, "(Cloud Print base URL is empty)");
+        }
+
+        await ApplyThrottleAsync();
+
+        var url = $"{baseUrl.TrimEnd('/')}/printfile";
+        using var httpRequest = new HttpRequestMessage(HttpMethod.Post, url);
+        httpRequest.Headers.Add("apiKey", apiKey);
+        httpRequest.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+        var requestJson = JsonSerializer.Serialize(request, JsonOptions);
+        httpRequest.Content = new StringContent(requestJson, Encoding.UTF8, "application/json");
+
+        using var client = httpClientFactory.CreateClient("SellasistApi");
+        using var response = await client.SendAsync(httpRequest);
+        var body = await response.Content.ReadAsStringAsync();
+
+        if (!response.IsSuccessStatusCode)
+            logger.LogWarning("Sellasist POST /printfile failed: {Status} {Body}", (int)response.StatusCode, body);
+
+        return ((int)response.StatusCode, body);
+    }
+
+    public async Task<List<SellasistPrinterPoint>> GetPrinterPointsAsync(string baseUrl, string apiKey)
+    {
+        if (string.IsNullOrWhiteSpace(apiKey) || string.IsNullOrWhiteSpace(baseUrl))
+        {
+            logger.LogError("Cloud Print base URL or API key is empty");
+            return [];
+        }
+
+        await ApplyThrottleAsync();
+
+        var url = $"{baseUrl.TrimEnd('/')}/printerpoints";
+        using var httpRequest = new HttpRequestMessage(HttpMethod.Get, url);
+        httpRequest.Headers.Add("apiKey", apiKey);
+        httpRequest.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+
+        using var client = httpClientFactory.CreateClient("SellasistApi");
+        using var response = await client.SendAsync(httpRequest);
+        var body = await response.Content.ReadAsStringAsync();
+
+        if (!response.IsSuccessStatusCode)
+        {
+            logger.LogWarning("Sellasist GET /printerpoints failed: {Status} {Body}", (int)response.StatusCode, body);
+            return [];
+        }
+
+        try { return JsonSerializer.Deserialize<List<SellasistPrinterPoint>>(body, JsonOptions) ?? []; }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to deserialize Sellasist /printerpoints response");
+            return [];
+        }
+    }
 }

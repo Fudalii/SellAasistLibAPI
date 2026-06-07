@@ -131,4 +131,15 @@ public interface ISellasistService
     /// partial body. Używane np. do dodania pola <c>comments</c> po utworzeniu PZ (POST z comments
     /// łamie parser Sellasist, ale PUT comments działa). Zwraca true gdy serwer odpowiedział "ok".</summary>
     Task<bool> UpdateOperationDocumentAsync(int documentId, object body);
+
+    // Cloud Print (druk dokumentów na stanowiskach WMS)
+
+    /// <summary>Zleca wydruk dokumentu przez Sellasist Cloud Print (POST {baseUrl}/printfile). Host i klucz
+    /// Cloud Print są osobne od głównego API sklepu (klucz generowany per stanowisko), dlatego przekazywane
+    /// jawnie zamiast z konfiguracji DI. Zwraca status HTTP + surowe body — sukces = 2xx; nie rzuca wyjątku.</summary>
+    Task<(int StatusCode, string RawBody)> PrintFileAsync(SellasistPrintFileRequest request, string baseUrl, string apiKey);
+
+    /// <summary>Pobiera listę stanowisk/drukarek Cloud Print (GET {baseUrl}/printerpoints) — do wyboru
+    /// <c>printerPointId</c> przy konfiguracji. Host i klucz Cloud Print przekazywane jawnie (osobne od głównego API).</summary>
+    Task<List<SellasistPrinterPoint>> GetPrinterPointsAsync(string baseUrl, string apiKey);
 }
