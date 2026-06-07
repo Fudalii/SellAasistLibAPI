@@ -409,10 +409,11 @@ public class SellasistService(IHttpClientFactory httpClientFactory, SellasistCon
     // === OPERATION DOCUMENTS (PZ, WZ) ===
 
     public async Task<List<SellasistOperationDocumentListItem>> GetOperationDocumentsAsync(
-        string type = "stock", string subtype = "admission", string sort = "desc")
+        string type = "stock", string subtype = "admission", string sort = "desc", int? seriesId = null)
     {
-        var result = await SendRequestAsync<List<SellasistOperationDocumentListItem>>(
-            $"operationdocuments?type={type}&subtype={subtype}&sort={sort}", HttpMethod.Get);
+        var url = $"operationdocuments?type={type}&subtype={subtype}&sort={sort}";
+        if (seriesId is > 0) url += $"&series_id={seriesId.Value}";
+        var result = await SendRequestAsync<List<SellasistOperationDocumentListItem>>(url, HttpMethod.Get);
         return result ?? [];
     }
 

@@ -114,9 +114,11 @@ public interface ISellasistService
     // Operation documents (dokumenty magazynowe — PZ, WZ)
 
     /// <summary>Pobiera listę dokumentów magazynowych (GET /operationdocuments). Dla PZ użyj domyślnych:
-    /// type="stock", subtype="admission". Sort "desc" zwraca najnowsze na górze.</summary>
+    /// type="stock", subtype="admission". Sort "desc" zwraca najnowsze na górze. <paramref name="seriesId"/>
+    /// (gdy &gt; 0) filtruje po serii dokumentu (query <c>series_id</c>) — pozwala pobierać tylko dokumenty
+    /// z wybranej serii (np. PZ tworzone z kolektora vs korekty automatyczne).</summary>
     Task<List<SellasistOperationDocumentListItem>> GetOperationDocumentsAsync(
-        string type = "stock", string subtype = "admission", string sort = "desc");
+        string type = "stock", string subtype = "admission", string sort = "desc", int? seriesId = null);
 
     /// <summary>Pobiera szczegóły dokumentu magazynowego z listą pozycji produktowych (GET /operationdocuments/{id}).</summary>
     Task<SellasistOperationDocumentDetail?> GetOperationDocumentAsync(int documentId);
