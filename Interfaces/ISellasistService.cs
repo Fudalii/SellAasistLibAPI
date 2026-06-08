@@ -132,14 +132,14 @@ public interface ISellasistService
     /// łamie parser Sellasist, ale PUT comments działa). Zwraca true gdy serwer odpowiedział "ok".</summary>
     Task<bool> UpdateOperationDocumentAsync(int documentId, object body);
 
-    // Cloud Print (druk dokumentów na stanowiskach WMS)
+    // Cloud Print (druk dokumentów na stanowiskach WMS — przez główne API Sellasist, ten sam apiKey)
 
-    /// <summary>Zleca wydruk dokumentu przez Sellasist Cloud Print (POST {baseUrl}/printfile). Host i klucz
-    /// Cloud Print są osobne od głównego API sklepu (klucz generowany per stanowisko), dlatego przekazywane
-    /// jawnie zamiast z konfiguracji DI. Zwraca status HTTP + surowe body — sukces = 2xx; nie rzuca wyjątku.</summary>
-    Task<(int StatusCode, string RawBody)> PrintFileAsync(SellasistPrintFileRequest request, string baseUrl, string apiKey);
+    /// <summary>Zleca wydruk dokumentu przez Sellasist Cloud Print (POST /printfile) — na głównym API sklepu
+    /// (host i apiKey z <see cref="Configure"/>). Zwraca status HTTP + surowe body — sukces = 2xx; nie rzuca
+    /// wyjątku. Zlecenie odbiera i drukuje aplikacja desktopowa Sellasist Cloud Print na stanowisku WMS.</summary>
+    Task<(int StatusCode, string RawBody)> PrintFileAsync(SellasistPrintFileRequest request);
 
-    /// <summary>Pobiera listę stanowisk/drukarek Cloud Print (GET {baseUrl}/printerpoints) — do wyboru
-    /// <c>printerPointId</c> przy konfiguracji. Host i klucz Cloud Print przekazywane jawnie (osobne od głównego API).</summary>
-    Task<List<SellasistPrinterPoint>> GetPrinterPointsAsync(string baseUrl, string apiKey);
+    /// <summary>Pobiera listę stanowisk/drukarek Cloud Print (GET /printerpoints) — źródło <c>printerPointId</c>
+    /// do wyboru w żądaniu druku.</summary>
+    Task<List<SellasistPrinterPoint>> GetPrinterPointsAsync();
 }
