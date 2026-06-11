@@ -123,6 +123,12 @@ public interface ISellasistService
     /// <summary>Pobiera szczegóły dokumentu magazynowego z listą pozycji produktowych (GET /operationdocuments/{id}).</summary>
     Task<SellasistOperationDocumentDetail?> GetOperationDocumentAsync(int documentId);
 
+    /// <summary>Pobiera listę serii dokumentów operacyjnych (GET /operationdocuments_series) — źródło
+    /// wartości <c>series_id</c> dla /operationdocuments. UWAGA: to INNY endpoint niż /documents_series
+    /// (tamten dotyczy dokumentów sprzedażowych). Dla serii PZ filtruj po stronie klienta:
+    /// Type="stock" + Subtype="admission".</summary>
+    Task<List<SellasistOperationDocumentSeriesListItem>> GetOperationDocumentSeriesAsync();
+
     /// <summary>Tworzy nowy dokument magazynowy (POST /operationdocuments). Dla PZ ustaw Type="stock" i Subtype="admission".
     /// Zwraca odpowiedź z ID i numerem nadanym przez Sellasist.</summary>
     Task<SellasistCreateOperationDocumentResponse?> CreateOperationDocumentAsync(SellasistCreateOperationDocumentRequest request);

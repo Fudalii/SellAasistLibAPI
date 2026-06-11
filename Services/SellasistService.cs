@@ -427,6 +427,13 @@ public class SellasistService(IHttpClientFactory httpClientFactory, SellasistCon
         return list?.FirstOrDefault();
     }
 
+    public async Task<List<SellasistOperationDocumentSeriesListItem>> GetOperationDocumentSeriesAsync()
+    {
+        var result = await SendRequestAsync<List<SellasistOperationDocumentSeriesListItem>>(
+            "operationdocuments_series", HttpMethod.Get);
+        return result ?? [];
+    }
+
     public async Task<SellasistCreateOperationDocumentResponse?> CreateOperationDocumentAsync(SellasistCreateOperationDocumentRequest request)
         => await SendRequestAsync<SellasistCreateOperationDocumentResponse>("operationdocuments", HttpMethod.Post, request);
 
