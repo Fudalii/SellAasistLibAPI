@@ -25,6 +25,11 @@ public interface ISellasistService
 
     // Order updates
     Task<bool> UpdateOrderStatusAsync(int orderId, int statusId);
+
+    /// <summary>Masowa aktualizacja zamówień (PUT /orders_bulk, max 1000 pozycji) — np. zmiana statusu
+    /// wielu zamówień JEDNYM żądaniem (oszczędza limit 100 zapytań/min). Odpowiedź zawiera wynik
+    /// per pozycja (lines[].status: success/error). Null = błąd HTTP całego żądania.</summary>
+    Task<SellasistOrdersBulkResponse?> UpdateOrdersBulkAsync(List<SellasistOrderBulkUpdateItem> orders);
     Task<bool> UpdateAdditionalFieldAsync(int orderId, int fieldId, string value);
     Task<bool> ClearShippingCostAsync(int orderId);
     Task<bool> UpdatePaymentStatusAsync(int orderId, string status);

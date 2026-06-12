@@ -267,6 +267,9 @@ public class SellasistService(IHttpClientFactory httpClientFactory, SellasistCon
         => await SendRequestAsync<List<SellasistShipmentDto>>($"ordersshipments?order_id={orderId}", HttpMethod.Get)
            ?? [];
 
+    public async Task<SellasistOrdersBulkResponse?> UpdateOrdersBulkAsync(List<SellasistOrderBulkUpdateItem> orders)
+        => await SendRequestAsync<SellasistOrdersBulkResponse>("orders_bulk", HttpMethod.Put, orders);
+
     public async Task<SellasistOrdershipmentDetail?> GetOrdershipmentAsync(string uuidOrId)
         => await SendRequestAsync<SellasistOrdershipmentDetail>(
             $"ordersshipments/{Uri.EscapeDataString(uuidOrId)}", HttpMethod.Get);
