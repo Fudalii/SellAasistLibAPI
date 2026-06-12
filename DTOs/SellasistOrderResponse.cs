@@ -17,6 +17,9 @@ public class SellasistOrderResponse
     [JsonPropertyName("additional_fields")] public List<SellasistAdditionalField>? AdditionalFields { get; set; }
     [JsonPropertyName("external_data")] public SellasistExternalData? ExternalData { get; set; }
 
+    /// <summary>Wartość całkowita zamówienia (brutto) — przy pobraniu to kwota do pobrania od klienta.</summary>
+    [JsonPropertyName("total")] public decimal? Total { get; set; }
+
     /// <summary>Numer dokumentu zakupu nadany w Sellasist (np. "FA/2020/123321").</summary>
     [JsonPropertyName("document_number")] public string? DocumentNumber { get; set; }
 
