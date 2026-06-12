@@ -1,3 +1,4 @@
+using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace Sellasist.DTOs;
@@ -6,7 +7,12 @@ namespace Sellasist.DTOs;
 /// etykieta PDF w base64 (możliwy prefiks "data:" — konsument musi go obciąć przed dekodowaniem).</summary>
 public class SellasistOrdershipmentDetail
 {
-    [JsonPropertyName("id")] public int Id { get; set; }
+    /// <summary>Identyfikator listu. UWAGA: gdy zapytanie idzie po ordershipment_uuid, Sellasist zwraca
+    /// tu ten UUID (string, zweryfikowane 2026-06-12); przy zapytaniu po id numerycznym — liczbę.
+    /// Stąd string + konwerter akceptujący oba typy tokenów JSON.</summary>
+    [JsonPropertyName("id")]
+    [JsonConverter(typeof(NumberOrStringJsonConverter))]
+    public string? Id { get; set; }
 
     /// <summary>Data utworzenia listu (format "yyyy-MM-dd HH:mm:ss").</summary>
     [JsonPropertyName("date")] public string? Date { get; set; }
