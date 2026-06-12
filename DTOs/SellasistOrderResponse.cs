@@ -16,6 +16,42 @@ public class SellasistOrderResponse
     [JsonPropertyName("payment")] public SellasistPaymentInfo? Payment { get; set; }
     [JsonPropertyName("additional_fields")] public List<SellasistAdditionalField>? AdditionalFields { get; set; }
     [JsonPropertyName("external_data")] public SellasistExternalData? ExternalData { get; set; }
+
+    /// <summary>Numer dokumentu zakupu nadany w Sellasist (np. "FA/2020/123321").</summary>
+    [JsonPropertyName("document_number")] public string? DocumentNumber { get; set; }
+
+    /// <summary>Listy przewozowe przypięte do zamówienia (tylko GET /orders/{id}) — źródło
+    /// <c>ordershipment_uuid</c> do pobrania etykiety przez GET /ordersshipments/{uuid}.</summary>
+    [JsonPropertyName("shipments")] public List<SellasistOrderShipmentInfo>? Shipments { get; set; }
+}
+
+/// <summary>List przewozowy w odpowiedzi GET /orders/{id} (pole shipments[]).</summary>
+public class SellasistOrderShipmentInfo
+{
+    [JsonPropertyName("ordershipment_id")] public int? OrdershipmentId { get; set; }
+
+    /// <summary>Identyfikator listu przewozowego (GUID) — parametr GET /ordersshipments/{uuid} do pobrania etykiety PDF.</summary>
+    [JsonPropertyName("ordershipment_uuid")] public string? OrdershipmentUuid { get; set; }
+
+    /// <summary>Usługa kurierska (np. "inpostCourierC2C", "INPOST - Paczka kurierska").</summary>
+    [JsonPropertyName("service")] public string? Service { get; set; }
+
+    [JsonPropertyName("tracking_number")] public string? TrackingNumber { get; set; }
+
+    /// <summary>Numery śledzenia paczek listu (jeden list może mieć wiele paczek).</summary>
+    [JsonPropertyName("tracking_numbers")] public List<SellasistTrackingNumberInfo>? TrackingNumbers { get; set; }
+}
+
+/// <summary>Pojedynczy numer śledzenia w shipments[].tracking_numbers — pola w camelCase (inaczej niż reszta API).</summary>
+public class SellasistTrackingNumberInfo
+{
+    [JsonPropertyName("trackingNumber")] public string? TrackingNumber { get; set; }
+    [JsonPropertyName("alternativeTrackingNumber")] public string? AlternativeTrackingNumber { get; set; }
+    [JsonPropertyName("deliveryStatusInternal")] public string? DeliveryStatusInternal { get; set; }
+    [JsonPropertyName("deliveryStatusExternal")] public string? DeliveryStatusExternal { get; set; }
+    [JsonPropertyName("deliveryStatusExternalDescription")] public string? DeliveryStatusExternalDescription { get; set; }
+    [JsonPropertyName("deliveryStatusUpdatedAt")] public string? DeliveryStatusUpdatedAt { get; set; }
+    [JsonPropertyName("trackingUrl")] public string? TrackingUrl { get; set; }
 }
 
 public class SellasistPaymentInfo
@@ -80,6 +116,15 @@ public class SellasistCartItem
     /// <summary>Stawka VAT pozycji jako string (np. "23.000", "8.000", "0.000"). Parsować przez
     /// <c>decimal.Parse(InvariantCulture)</c> w konsumencie — Sellasist zwraca string z 3 miejscami po przecinku.</summary>
     [JsonPropertyName("tax_rate")] public string? TaxRate { get; set; }
+
+    /// <summary>Cena zakupu produktu (netto, z kartoteki produktu).</summary>
+    [JsonPropertyName("price_buy")] public decimal? PriceBuy { get; set; }
+
+    /// <summary>Wybrane opcje produktu zakodowane w base64 — preferuj <see cref="SelectedOptionsData"/>.</summary>
+    [JsonPropertyName("selected_options")] public string? SelectedOptions { get; set; }
+
+    /// <summary>Wybrane opcje produktu w formie strukturalnej (nazwa + wartość).</summary>
+    [JsonPropertyName("selected_options_data")] public List<SellasistSelectedOption>? SelectedOptionsData { get; set; }
 }
 
 public class SellasistShipmentInfo
@@ -105,4 +150,30 @@ public class SellasistExternalData
 {
     [JsonPropertyName("external_id")] public string? ExternalId { get; set; }
     [JsonPropertyName("external_type")] public string? ExternalType { get; set; }
+
+    /// <summary>Login kupującego w portalu zewnętrznym (np. nick Allegro).</summary>
+    [JsonPropertyName("external_login")] public string? ExternalLogin { get; set; }
+
+    /// <summary>Identyfikator kupującego w portalu zewnętrznym.</summary>
+    [JsonPropertyName("external_user_id")] public int? ExternalUserId { get; set; }
+
+    /// <summary>Nazwa sposobu wysyłki w portalu zewnętrznym (np. "Allegro Paczkomaty InPost").</summary>
+    [JsonPropertyName("external_shipment_name")] public string? ExternalShipmentName { get; set; }
+
+    /// <summary>Nazwa sposobu płatności w portalu zewnętrznym (np. "COD").</summary>
+    [JsonPropertyName("external_payment_name")] public string? ExternalPaymentName { get; set; }
+}
+
+/// <summary>Wybrana opcja/wariant pozycji zamówienia (carts[].selected_options_data).</summary>
+public class SellasistSelectedOption
+{
+    /// <summary>Rodzaj opcji/wariantu (np. "Kolor").</summary>
+    [JsonPropertyName("name")] public string? Name { get; set; }
+
+    /// <summary>Wartość opcji/wariantu (np. "Czerwony").</summary>
+    [JsonPropertyName("prop")] public string? Prop { get; set; }
+
+    [JsonPropertyName("price")] public decimal? Price { get; set; }
+    [JsonPropertyName("option_id")] public int? OptionId { get; set; }
+    [JsonPropertyName("variant_id")] public int? VariantId { get; set; }
 }

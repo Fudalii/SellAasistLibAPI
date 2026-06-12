@@ -56,6 +56,11 @@ public interface ISellasistService
     Task<bool> SubmitAwbAsync(SellasistAddAwbRequest request);
     Task<List<SellasistShipmentDto>> GetOrderShipmentsAsync(int orderId);
 
+    /// <summary>Pobiera szczegóły pojedynczego listu przewozowego (GET /ordersshipments/{id}) wraz z etykietą PDF
+    /// w polu <c>File</c> (base64, możliwy prefiks "data:"). Jako identyfikator przyjmuje <c>ordershipment_uuid</c>
+    /// z GET /orders/{id} (pole shipments[].ordershipment_uuid) lub numeryczne id listu. Zwraca null gdy brak listu.</summary>
+    Task<SellasistOrdershipmentDetail?> GetOrdershipmentAsync(string uuidOrId);
+
     // Products
     /// <summary>Tworzy nowy produkt w Sellasist (POST /products). Zwraca odpowiedź z nadanym ID.
     /// Pole images[] przyjmuje URL-e zdjęć — Sellasist pobiera obrazy samodzielnie (base64 niepotrzebne).</summary>
