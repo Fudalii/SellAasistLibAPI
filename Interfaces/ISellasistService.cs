@@ -18,6 +18,11 @@ public interface ISellasistService
     // Orders
     Task<SellasistOrderResponse?> GetOrderAsync(int orderId);
     Task<List<SellasistOrderResponse>> GetOrdersByStatusAsync(int statusId, int limit = 50);
+
+    /// <summary>Jak GetOrdersByStatusAsync, ale rozróżnia błąd od pustej listy: Success=false gdy
+    /// dowolna strona paginacji padła (HTTP/sieć/deserializacja) — lista jest wtedy NIEPEŁNA i nie
+    /// wolno jej traktować jako stanu statusu. Używać w pollingu sterującym automatyką.</summary>
+    Task<(bool Success, List<SellasistOrderResponse> Orders)> TryGetOrdersByStatusAsync(int statusId, int limit = 100);
     Task<List<SellasistOrderResponse>> GetOrdersWithCartsAsync(int statusId, int limit = 50);
 
     /// <summary>Pobiera zamówienia zmienione od daty dateFrom (paginacja po limit). Używane do synchronizacji statusów SA → B2B.</summary>

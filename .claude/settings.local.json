@@ -41,7 +41,13 @@
       "Bash(xargs head *)",
       "Bash(xargs -I {} basename {})",
       "Bash(git remote *)",
-      "Bash(git push *)"
+      "Bash(git push *)",
+      "Bash(git add *)",
+      "Bash(git commit -m 'Throttling requestów + skip 404 w logach *)"
     ]
-  }
+  },
+  "enabledMcpjsonServers": [
+    "playwright",
+    "serena"
+  ]
 }

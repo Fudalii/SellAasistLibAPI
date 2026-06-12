@@ -102,6 +102,60 @@ public class SellasistService(IHttpClientFactory httpClientFactory, SellasistCon
         }
     }
 
+    /// <summary>Jak <see cref="SendRequestAsync{T}"/>, ale rozróżnia BŁĄD (HTTP non-2xx poza 404,
+    /// wyjątek sieci/timeout, błąd deserializacji) od pustego wyniku (404/2xx) — Success=false oznacza,
+    /// że dane są NIEZNANE, a nie puste. Używać tam, gdzie częściowa odpowiedź jest groźna (paginacja).</summary>
+    private async Task<(bool Success, T? Data)> TrySendRequestAsync<T>(string endpoint, HttpMethod method, object? body = null)
+    {
+        if (string.IsNullOrWhiteSpace(_config.ApiToken))
+        {
+            logger.LogError("Sellasist API token is empty");
+            return (false, default);
+        }
+
+        await ApplyThrottleAsync();
+
+        var url = $"{_config.BaseUrl}/{endpoint}";
+
+        try
+        {
+            using var request = new HttpRequestMessage(method, url);
+            request.Headers.Add("apiKey", _config.ApiToken);
+            request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+
+            if (body != null)
+            {
+                var json = JsonSerializer.Serialize(body, JsonOptions);
+                request.Content = new StringContent(json, Encoding.UTF8, "application/json");
+            }
+
+            using var client = httpClientFactory.CreateClient("SellasistApi");
+            using var response = await client.SendAsync(request);
+            var responseContent = await response.Content.ReadAsStringAsync();
+
+            if (!response.IsSuccessStatusCode)
+            {
+                // 404 dla zasobów listowych = brak rekordów (pusta strona) — to sukces, nie błąd.
+                if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+                    return (true, default);
+
+                logger.LogWarning("Sellasist {Method} /{Endpoint} failed: {Status} {Body}",
+                    method.Method, endpoint, (int)response.StatusCode, responseContent);
+                return (false, default);
+            }
+
+            if (typeof(T) == typeof(bool))
+                return (true, (T)(object)true);
+
+            return (true, JsonSerializer.Deserialize<T>(responseContent, JsonOptions));
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Sellasist {Method} /{Endpoint} — błąd zapytania", method.Method, endpoint);
+            return (false, default);
+        }
+    }
+
     // === ORDER CREATION ===
 
     public async Task<SellasistCreateOrderResponse?> CreateOrderAsync(SellasistCreateOrderRequest request)
@@ -167,6 +221,32 @@ public class SellasistService(IHttpClientFactory httpClientFactory, SellasistCon
             else hasMore = false;
         }
         return all;
+    }
+
+    public async Task<(bool Success, List<SellasistOrderResponse> Orders)> TryGetOrdersByStatusAsync(int statusId, int limit = 100)
+    {
+        var all = new List<SellasistOrderResponse>();
+        int offset = 0;
+
+        while (true)
+        {
+            var (ok, batch) = await TrySendRequestAsync<List<SellasistOrderResponse>>(
+                $"orders?offset={offset}&limit={limit}&status_id={statusId}", HttpMethod.Get);
+
+            // Błąd w środku stronicowania = lista NIEZNANA — nie wolno zwrócić częściowej jako pełnej
+            // (konsument mógłby uznać ucięty zbiór za kompletny i stabilny).
+            if (!ok)
+                return (false, all);
+
+            if (batch is { Count: > 0 })
+            {
+                all.AddRange(batch);
+                if (batch.Count < limit) break;
+                offset += limit;
+            }
+            else break;
+        }
+        return (true, all);
     }
 
     public async Task<List<SellasistOrderResponse>> GetOrdersWithCartsAsync(int statusId, int limit = 50)
@@ -268,7 +348,25 @@ public class SellasistService(IHttpClientFactory httpClientFactory, SellasistCon
            ?? [];
 
     public async Task<SellasistOrdersBulkResponse?> UpdateOrdersBulkAsync(List<SellasistOrderBulkUpdateItem> orders)
-        => await SendRequestAsync<SellasistOrdersBulkResponse>("orders_bulk", HttpMethod.Put, orders);
+    {
+        // Limit endpointu: 1000 pozycji (HTTP 413 powyżej) — dzielimy zachowawczo po 500 i scalamy wyniki.
+        const int chunkSize = 500;
+        if (orders.Count <= chunkSize)
+            return await SendRequestAsync<SellasistOrdersBulkResponse>("orders_bulk", HttpMethod.Put, orders);
+
+        var mergedLines = new List<SellasistOrdersBulkLine>();
+        var anySuccess = false;
+        foreach (var chunk in orders.Chunk(chunkSize))
+        {
+            var response = await SendRequestAsync<SellasistOrdersBulkResponse>("orders_bulk", HttpMethod.Put, chunk.ToList());
+            if (response is null)
+                continue; // brak linii dla tej paczki — konsument potraktuje pozycje jako nieudane
+            anySuccess = true;
+            mergedLines.AddRange(response.Lines ?? []);
+        }
+
+        return anySuccess ? new SellasistOrdersBulkResponse { Status = "SUCCESS", Lines = mergedLines } : null;
+    }
 
     public async Task<SellasistOrdershipmentDetail?> GetOrdershipmentAsync(string uuidOrId)
         => await SendRequestAsync<SellasistOrdershipmentDetail>(
@@ -470,7 +568,8 @@ public class SellasistService(IHttpClientFactory httpClientFactory, SellasistCon
         var requestJson = JsonSerializer.Serialize(request, JsonOptions);
         httpRequest.Content = new StringContent(requestJson, Encoding.UTF8, "application/json");
 
-        using var client = httpClientFactory.CreateClient("SellasistApi");
+        // Dedykowany klient z długim timeoutem — duże dokumenty base64 przekraczają standardowe 30 s.
+        using var client = httpClientFactory.CreateClient("SellasistApiPrint");
         using var response = await client.SendAsync(httpRequest);
         var body = await response.Content.ReadAsStringAsync();
 

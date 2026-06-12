@@ -63,7 +63,12 @@ public class SellasistPaymentInfo
     [JsonPropertyName("name")] public string? Name { get; set; }
     [JsonPropertyName("paid")] public string? Paid { get; set; }
     [JsonPropertyName("paid_date")] public string? PaidDate { get; set; }
-    [JsonPropertyName("cod")] public int Cod { get; set; }
+
+    /// <summary>Flaga pobrania: 1 = COD. Spec dokumentuje bool, realne odpowiedzi bywają 0/1 —
+    /// konwerter przyjmuje oba (true→1, false→0).</summary>
+    [JsonPropertyName("cod")]
+    [JsonConverter(typeof(BoolOrNumberToIntJsonConverter))]
+    public int Cod { get; set; }
     [JsonPropertyName("status")] public string? Status { get; set; }
     [JsonPropertyName("currency")] public string? Currency { get; set; }
     [JsonPropertyName("tax")] public string? Tax { get; set; }
