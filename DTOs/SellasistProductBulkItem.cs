@@ -8,6 +8,8 @@ public class SellasistProductBulkItem
     public string Title { get; set; } = string.Empty;
     public string? Price { get; set; }
     public string? PricePromo { get; set; }
+    /// <summary>Cena zakupu produktu (pole "price_buy" w API, od v1.86.0 GET /products_bulk). Moze byc netto lub brutto — interpretacja po stronie integracji.</summary>
+    public string? PriceBuy { get; set; }
     public string? Quantity { get; set; }
     public bool Archived { get; set; }
 
