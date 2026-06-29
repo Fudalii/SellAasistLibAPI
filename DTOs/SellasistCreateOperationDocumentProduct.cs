@@ -15,23 +15,16 @@ public class SellasistCreateOperationDocumentProduct
     [JsonPropertyName("quantity")]
     public double Quantity { get; set; }
 
-    /// <summary>Cena brutto jednostkowa. WYMAGANE (Sellasist throw "Missing required fields:
-    /// price_gross_unit in product array" gdy null). Dla PZ wewnętrznego można dać 0.</summary>
+    /// <summary>Cena jednostkowa pozycji. WYMAGANE (Sellasist throw "Missing required fields:
+    /// price_gross_unit in product array" gdy null). Dla PZ wewnętrznego można dać 0.
+    /// <para/>
+    /// ⚠️ PUŁAPKA NAZWY: w <c>/operationdocuments</c> to pole — mimo nazwy „gross" — jest traktowane
+    /// przez Sellasist jako cena <b>NETTO</b> jednostkowa. Serwer sam dolicza VAT i wylicza brutto
+    /// (zweryfikowane LIVE 2026-06-29: wysłane 138,89 przy VAT 8% → zapisane net_unit=138,89,
+    /// gross_unit=150,00). Pola <c>price_net_unit</c> i <c>price_buy</c> w body POST są IGNOROWANE.
+    /// Aby na dokumencie wyszła zadana cena brutto, wyślij tu <c>brutto/(1+VAT/100)</c>.</summary>
     [JsonPropertyName("price_gross_unit")]
     public decimal PriceGrossUnit { get; set; }
-
-    /// <summary>Cena netto jednostkowa. Opcjonalne — wysyłamy dla spójności z <c>price_gross_unit</c>
-    /// (część paneli pokazuje na pozycji dokumentu kolumnę netto). Powinna być wyliczona z brutto i VAT.</summary>
-    [JsonPropertyName("price_net_unit")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public decimal? PriceNetUnit { get; set; }
-
-    /// <summary>Cena zakupu (brutto, jednostkowa). Dla dokumentu przyjęcia (PZ — type=stock,
-    /// subtype=admission) to wartość zakupu pozycji prezentowana w panelu i aktualizująca koszt
-    /// w kartotece. Opcjonalne — pomijane gdy null.</summary>
-    [JsonPropertyName("price_buy")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public decimal? PriceBuy { get; set; }
 
     /// <summary>Stawka VAT (% jako int — np. 23). Opcjonalne; serwer dopisuje z kartoteki.</summary>
     [JsonPropertyName("vat")]
