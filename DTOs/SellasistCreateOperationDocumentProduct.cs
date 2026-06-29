@@ -20,6 +20,19 @@ public class SellasistCreateOperationDocumentProduct
     [JsonPropertyName("price_gross_unit")]
     public decimal PriceGrossUnit { get; set; }
 
+    /// <summary>Cena netto jednostkowa. Opcjonalne — wysyłamy dla spójności z <c>price_gross_unit</c>
+    /// (część paneli pokazuje na pozycji dokumentu kolumnę netto). Powinna być wyliczona z brutto i VAT.</summary>
+    [JsonPropertyName("price_net_unit")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public decimal? PriceNetUnit { get; set; }
+
+    /// <summary>Cena zakupu (brutto, jednostkowa). Dla dokumentu przyjęcia (PZ — type=stock,
+    /// subtype=admission) to wartość zakupu pozycji prezentowana w panelu i aktualizująca koszt
+    /// w kartotece. Opcjonalne — pomijane gdy null.</summary>
+    [JsonPropertyName("price_buy")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public decimal? PriceBuy { get; set; }
+
     /// <summary>Stawka VAT (% jako int — np. 23). Opcjonalne; serwer dopisuje z kartoteki.</summary>
     [JsonPropertyName("vat")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
