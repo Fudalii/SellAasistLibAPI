@@ -8,6 +8,10 @@ public class SellasistUpdateBillAddressRequest
     [JsonPropertyName("company_name")]
     public string? CompanyName { get; set; }
 
+    /// <summary>NIP firmy. Ustaw, by wpisać/poprawić NIP na zamówieniu (np. wyłuskany z nazwy firmy).</summary>
+    [JsonPropertyName("company_nip")]
+    public string? CompanyNip { get; set; }
+
     [JsonPropertyName("street")]
     public string? Street { get; set; }
 
