@@ -121,6 +121,9 @@ public class SellasistCartItem
     [JsonPropertyName("ean")] public string? Ean { get; set; }
     [JsonPropertyName("symbol")] public string? Symbol { get; set; }
 
+    /// <summary>Sygnatura pozycji (np. sygnatura aukcji Allegro) — pole `signature` z API Sellasist.</summary>
+    [JsonPropertyName("signature")] public string? Signature { get; set; }
+
     /// <summary>Stawka VAT pozycji jako string (np. "23.000", "8.000", "0.000"). Parsować przez
     /// <c>decimal.Parse(InvariantCulture)</c> w konsumencie — Sellasist zwraca string z 3 miejscami po przecinku.</summary>
     [JsonPropertyName("tax_rate")] public string? TaxRate { get; set; }
