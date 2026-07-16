@@ -21,10 +21,20 @@ public class SellasistOperationDocumentProduct
     [JsonNumberHandling(JsonNumberHandling.AllowReadingFromString)]
     public int ProductId { get; set; }
 
-    /// <summary>Ilość na pozycji (Sellasist zwraca jako string "4.000" — parsujemy do double).</summary>
+    /// <summary>Ilość na pozycji — traktowana jako RZECZYWISTA przyjęta (Weryfikacja dostaw nadpisuje ją
+    /// przyjętą ilością przy „Wyślij"). Deklarowaną („ile MA przyjść") trzyma osobne <see cref="DeclaredQuantity"/>.
+    /// Sellasist zwraca jako string "4.000" — parsujemy do double.</summary>
     [JsonPropertyName("quantity")]
     [JsonNumberHandling(JsonNumberHandling.AllowReadingFromString)]
     public double Quantity { get; set; }
+
+    /// <summary>Ilość DEKLAROWANA (declared_quantity) — ile MA przyjść wg dokumentu; stabilna referencja
+    /// niezależna od <see cref="Quantity"/>. Zweryfikowane LIVE (cvsklep 2026-07-16): PUT quantity/defect_quantity
+    /// NIE kasuje tego pola. 0 gdy nieustawiona (np. PZ z „Utwórz PZ", które wysyła tylko quantity). Weryfikacja
+    /// dostaw czyta to pole jako „oczekiwano" (fallback: <see cref="Quantity"/> gdy declared = 0).</summary>
+    [JsonPropertyName("declared_quantity")]
+    [JsonNumberHandling(JsonNumberHandling.AllowReadingFromString)]
+    public double DeclaredQuantity { get; set; }
 
     /// <summary>Symbol/SKU produktu.</summary>
     [JsonPropertyName("symbol")]
