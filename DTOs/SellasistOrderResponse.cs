@@ -83,6 +83,7 @@ public class SellasistAddress
     [JsonPropertyName("street")] public string? Street { get; set; }
     [JsonPropertyName("home_number")] public string? HomeNumber { get; set; }
     [JsonPropertyName("flat_number")] public string? FlatNumber { get; set; }
+    [JsonPropertyName("description")] public string? Description { get; set; }
     [JsonPropertyName("city")] public string? City { get; set; }
     [JsonPropertyName("postcode")] public string? Postcode { get; set; }
     [JsonPropertyName("phone")] public string? Phone { get; set; }
