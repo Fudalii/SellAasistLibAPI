@@ -1,5 +1,6 @@
 using System.Net.Http.Headers;
 using System.Text;
+using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.Extensions.Logging;
@@ -22,7 +23,11 @@ public class SellasistService(IHttpClientFactory httpClientFactory, SellasistCon
         PropertyNameCaseInsensitive = true,
         PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
         NumberHandling = JsonNumberHandling.AllowReadingFromString,
-        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+        // Cudzysłowy w wartościach (np. nazwa firmy P.H.U. "JUREX") escapujemy jako \" (styl json_encode/PHP),
+        // a nie domyślnym " — parser API Sellasist odrzucał payload z ". Bonus: polskie znaki jako UTF-8
+        // (bezpieczne: Content-Type application/json; charset=utf-8; „unsafe" dotyczy tylko osadzania JSON w HTML).
+        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
     };
 
     // Throttle — minimum odstęp między requestami (config.MinDelayBetweenRequestsMs).
