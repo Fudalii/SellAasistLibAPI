@@ -17,6 +17,11 @@ public class SellasistOrderResponse
     [JsonPropertyName("additional_fields")] public List<SellasistAdditionalField>? AdditionalFields { get; set; }
     [JsonPropertyName("external_data")] public SellasistExternalData? ExternalData { get; set; }
 
+    /// <summary>Punkt odbioru wybrany przez kupującego (np. paczkomat InPost, punkt Packeta).
+    /// Model zapisu (POST /orders) przyjmuje to pole od zawsze; w odpowiedzi GET /orders/{id}
+    /// występuje dla zamówień z dostawą do punktu — null przy dostawie adresowej.</summary>
+    [JsonPropertyName("pickup_point")] public SellasistPickupPoint? PickupPoint { get; set; }
+
     /// <summary>Wartość całkowita zamówienia (brutto) — przy pobraniu to kwota do pobrania od klienta.</summary>
     [JsonPropertyName("total")] public decimal? Total { get; set; }
 
@@ -174,6 +179,20 @@ public class SellasistExternalData
 
     /// <summary>Nazwa sposobu płatności w portalu zewnętrznym (np. "COD").</summary>
     [JsonPropertyName("external_payment_name")] public string? ExternalPaymentName { get; set; }
+}
+
+/// <summary>Punkt odbioru w odpowiedzi GET /orders/{id} (pole pickup_point).
+/// Model odczytu — celowo osobny od SellasistCreateOrderPickupPoint (read/write rozdzielone).</summary>
+public class SellasistPickupPoint
+{
+    /// <summary>Kod/identyfikator punktu (np. "KRA01M" dla InPost, numeryczne ID punktu dla Packeta).</summary>
+    [JsonPropertyName("code")] public string? Code { get; set; }
+
+    /// <summary>Typ punktu (zależny od integracji sklepu, np. "inpost").</summary>
+    [JsonPropertyName("type")] public string? Type { get; set; }
+
+    /// <summary>Adres punktu w formie tekstowej (opcjonalny).</summary>
+    [JsonPropertyName("address")] public string? Address { get; set; }
 }
 
 /// <summary>Wybrana opcja/wariant pozycji zamówienia (carts[].selected_options_data).</summary>
