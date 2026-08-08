@@ -58,6 +58,11 @@ public interface ISellasistService
     /// Uzywane do synchronizacji B2B: gdy admin zmieni ilosc lub cene pozycji w juz-wyslanym zamowieniu.</summary>
     Task<bool> UpdateOrderLineAsync(int lineId, SellasistOrderLineRequest request);
 
+    /// <summary>Generyczny PUT /orders_lines/{lineId} z partial body — aktualizuje tylko podane pola linii
+    /// (np. <c>signature</c>), pozostałe zostają bez zmian. Bezpieczniejsze niż pełny rebuild
+    /// <see cref="SellasistOrderLineRequest"/> gdy zmieniamy jedno pole (brak ryzyka nadpisania ceny/ilości).</summary>
+    Task<bool> UpdateOrderLineRawAsync(int lineId, object body);
+
     /// <summary>DELETE /orders_lines/{lineId} — usuwa linie z zamowienia. Uzywane do synchronizacji B2B:
     /// gdy admin usunie pozycje z juz-wyslanego zamowienia.</summary>
     Task<bool> DeleteOrderLineAsync(int lineId);

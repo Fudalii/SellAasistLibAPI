@@ -127,8 +127,26 @@ public class SellasistCartItem
     [JsonPropertyName("ean")] public string? Ean { get; set; }
     [JsonPropertyName("symbol")] public string? Symbol { get; set; }
 
-    /// <summary>Sygnatura pozycji (np. sygnatura aukcji Allegro) — pole `signature` z API Sellasist.</summary>
+    /// <summary>Sygnatura pozycji (np. sygnatura aukcji Allegro) — pole `signature` z API Sellasist.
+    /// UWAGA: przez API TYLKO DO ODCZYTU — PUT /orders_lines i PUT /orders ignorują to pole
+    /// (zweryfikowane na żywo 2026-08-08: partial, pełny rebuild, z symbol/ean, carts[] w orders — wszystko 200 + brak zapisu).
+    /// Zapisywalnym odpowiednikiem per pozycja jest <see cref="AdditionalInformation"/>.</summary>
     [JsonPropertyName("signature")] public string? Signature { get; set; }
+
+    /// <summary>Dodatkowe informacje wyświetlane przy pozycji w panelu — JEDYNE zapisywalne pole tekstowe
+    /// linii przez PUT /orders_lines (body {product_id, additional_information}). Pusty string i null są
+    /// ignorowane przy zapisie — czyszczenie wartości wymaga wysłania spacji " ".</summary>
+    [JsonPropertyName("additional_information")] public string? AdditionalInformation { get; set; }
+
+    /// <summary>URL pełnego zdjęcia pozycji (segment /n/). Miniatura = ten adres z /n/ zamienionym na /t/.
+    /// Zwracane i w GET /orders/{id}, i w GET /orders_with_carts.</summary>
+    [JsonPropertyName("image")] public string? Image { get; set; }
+
+    /// <summary>URL miniatury zdjęcia pozycji — tylko GET /orders/{id} (orders_with_carts zwraca samo image).</summary>
+    [JsonPropertyName("image_thumb")] public string? ImageThumb { get; set; }
+
+    /// <summary>Lokalizacja magazynowa produktu (np. "C-1-3") — tylko GET /orders/{id}.</summary>
+    [JsonPropertyName("location")] public string? Location { get; set; }
 
     /// <summary>Stawka VAT pozycji jako string (np. "23.000", "8.000", "0.000"). Parsować przez
     /// <c>decimal.Parse(InvariantCulture)</c> w konsumencie — Sellasist zwraca string z 3 miejscami po przecinku.</summary>
