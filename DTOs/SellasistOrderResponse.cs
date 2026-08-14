@@ -189,8 +189,9 @@ public class SellasistExternalData
     /// <summary>Login kupującego w portalu zewnętrznym (np. nick Allegro).</summary>
     [JsonPropertyName("external_login")] public string? ExternalLogin { get; set; }
 
-    /// <summary>Identyfikator kupującego w portalu zewnętrznym.</summary>
-    [JsonPropertyName("external_user_id")] public int? ExternalUserId { get; set; }
+    /// <summary>Identyfikator kupującego w portalu zewnętrznym — long, bo identyfikatory marketplace'ów
+    /// potrafią przekraczać zakres int (jak option_id Temu w carts[].selected_options_data).</summary>
+    [JsonPropertyName("external_user_id")] public long? ExternalUserId { get; set; }
 
     /// <summary>Nazwa sposobu wysyłki w portalu zewnętrznym (np. "Allegro Paczkomaty InPost").</summary>
     [JsonPropertyName("external_shipment_name")] public string? ExternalShipmentName { get; set; }
@@ -223,6 +224,11 @@ public class SellasistSelectedOption
     [JsonPropertyName("prop")] public string? Prop { get; set; }
 
     [JsonPropertyName("price")] public decimal? Price { get; set; }
-    [JsonPropertyName("option_id")] public int? OptionId { get; set; }
-    [JsonPropertyName("variant_id")] public int? VariantId { get; set; }
+
+    /// <summary>ID opcji w portalu źródłowym — long, bo marketplace'y (np. Temu) nadają identyfikatory
+    /// 14-cyfrowe przekraczające zakres int (realny case: 57575915659074 → JsonException i null z GET /orders).</summary>
+    [JsonPropertyName("option_id")] public long? OptionId { get; set; }
+
+    /// <summary>ID wariantu w portalu źródłowym — long z tego samego powodu co <see cref="OptionId"/>.</summary>
+    [JsonPropertyName("variant_id")] public long? VariantId { get; set; }
 }

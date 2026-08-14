@@ -17,6 +17,12 @@ public interface ISellasistService
 
     // Orders
     Task<SellasistOrderResponse?> GetOrderAsync(int orderId);
+
+    /// <summary>Jak <see cref="GetOrderAsync"/>, ale zwraca też przyczynę niepowodzenia (status HTTP,
+    /// błąd parsowania odpowiedzi, błąd sieci) zamiast samego null — do czytelnych komunikatów błędów
+    /// w logach konsumenta (np. „HTTP 404" vs „błąd parsowania: Path $.carts[0]...").</summary>
+    Task<SellasistOrderFetchResult> GetOrderDetailedAsync(int orderId);
+
     Task<List<SellasistOrderResponse>> GetOrdersByStatusAsync(int statusId, int limit = 50);
 
     /// <summary>Jak GetOrdersByStatusAsync, ale rozróżnia błąd od pustej listy: Success=false gdy

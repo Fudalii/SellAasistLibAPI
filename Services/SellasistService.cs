@@ -206,6 +206,67 @@ public class SellasistService(IHttpClientFactory httpClientFactory, SellasistCon
     public async Task<SellasistOrderResponse?> GetOrderAsync(int orderId)
         => await SendRequestAsync<SellasistOrderResponse>($"orders/{orderId}", HttpMethod.Get);
 
+    /// <inheritdoc />
+    public async Task<SellasistOrderFetchResult> GetOrderDetailedAsync(int orderId)
+    {
+        var result = new SellasistOrderFetchResult();
+
+        if (string.IsNullOrWhiteSpace(_config.ApiToken))
+        {
+            logger.LogError("Sellasist API token is empty");
+            result.Error = "brak tokenu API w konfiguracji";
+            return result;
+        }
+
+        await ApplyThrottleAsync();
+
+        var url = $"{_config.BaseUrl}/orders/{orderId}";
+
+        try
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Get, url);
+            request.Headers.Add("apiKey", _config.ApiToken);
+            request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+
+            using var client = httpClientFactory.CreateClient("SellasistApi");
+            using var response = await client.SendAsync(request);
+            var responseContent = await response.Content.ReadAsStringAsync();
+            result.HttpStatus = (int)response.StatusCode;
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var snippet = responseContent.Length > 300 ? responseContent[..300] : responseContent;
+                result.Error = $"HTTP {(int)response.StatusCode} — {snippet}";
+                if (response.StatusCode != System.Net.HttpStatusCode.NotFound)
+                {
+                    logger.LogWarning("Sellasist GET orders/{OrderId} failed: {Status} {Body}",
+                        orderId, (int)response.StatusCode, responseContent);
+                }
+                return result;
+            }
+
+            try
+            {
+                result.Order = JsonSerializer.Deserialize<SellasistOrderResponse>(responseContent, JsonOptions);
+                if (result.Order is null) result.Error = "pusta odpowiedź (JSON null)";
+            }
+            catch (Exception ex)
+            {
+                // Message wyjątku System.Text.Json zawiera ścieżkę pola (Path: $.carts[0]...) — kluczowa diagnostyka
+                // (realny case: option_id Temu przekraczające int → cały GET „znikał" jako null bez śladu).
+                logger.LogError(ex, "Failed to deserialize Sellasist response from /orders/{OrderId}", orderId);
+                result.Error = $"błąd parsowania odpowiedzi: {ex.Message}";
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Sellasist GET orders/{OrderId} — błąd połączenia", orderId);
+            result.Error = $"błąd połączenia: {ex.Message}";
+        }
+
+        return result;
+    }
+
     public async Task<List<SellasistOrderResponse>> GetOrdersByStatusAsync(int statusId, int limit = 50)
     {
         var all = new List<SellasistOrderResponse>();
