@@ -47,6 +47,7 @@ SendRequestAsync<T>(HttpMethod, string endpoint, object? body = null)
 
 **Odczyt:**
 - `GetOrderAsync(int orderId)` — pojedyncze zamówienie
+- `GetOrderDetailedAsync(int orderId)` — jak wyżej, ale zwraca `SellasistOrderFetchResult` (`Order` + `HttpStatus` + `Error` po polsku: status HTTP z fragmentem body / błąd parsowania z JSON path / błąd sieci). Używaj wszędzie, gdzie użytkownik ma zobaczyć DLACZEGO zamówienia nie ma — samo `GetOrderAsync` zwraca gołe null (incydent mtrtrade 2026-08-14: null przez przepełnione `option_id` wyglądał jak „zamówienie nie istnieje")
 - `GetOrdersByStatusAsync(int statusId)` — lista po statusie (bez koszyków), paginacja auto-batch po 50
 - `GetOrdersWithCartsAsync(int statusId)` — lista z pozycjami koszyka, paginacja auto-batch po 50
 - `GetOrdersAsync(DateTime dateFrom, int limit = 50)` — lista zamówień od daty (GET `/orders?date_from=YYYY-MM-DD`). Paginacja auto-batch. Używana do dwukierunkowej synchronizacji statusu SA → B2B
@@ -97,6 +98,7 @@ SendRequestAsync<T>(HttpMethod, string endpoint, object? body = null)
 | DTO | Opis |
 |-----|------|
 | `SellasistOrderResponse` | Zamówienie: adresy, koszyk (`SellasistCartItem[]` z `Id`, `Symbol`, `Ean`, `Name`, `Quantity`, `Price`), koszt wysyłki, pola dodatkowe, external_id |
+| `SellasistOrderFetchResult` | Wynik `GetOrderDetailedAsync`: `Order` + `HttpStatus` + `Error` (opis przyczyny po polsku) — diagnostyka zamiast gołego null |
 | `SellasistAddress` | Adres odczytu (billing/shipping w `SellasistOrderResponse`): pełne dane osobowe, firma, NIP, kraj |
 | `SellasistCreateOrderRequest` | Request POST `/orders`: id (string — idempotencja), currency, payment_status, paid, status (int), email, date, shipment_price, payment_id/name, shipment_id/name, invoice, comment, bill_address, shipment_address, carts[], pickup_point? |
 | `SellasistCreateOrderAddress` | Adres tworzenia zamówienia (POST `/orders`) — street + home_number + flat_number osobno |
@@ -123,10 +125,11 @@ Microsoft.Extensions.DependencyInjection.Abstractions (9.0.4)
 Microsoft.Extensions.Logging.Abstractions (9.0.4)
 ```
 
-Target framework: `.NET 10.0`
+Target frameworks: `net9.0;net10.0` (multi-target — konsumenci na .NET 9 i .NET 10)
 
 ## Uwagi dot. API Sellasist
 
+- **⚠️ Identyfikatory nadawane przez marketplace'y NIGDY jako `int` — zawsze `long?` (lub string).** Temu wstawia do `carts[].selected_options_data[].option_id` wartości 14–15-cyfrowe (realne: `57575915659074`, `155374736958714`) — `int?` w DTO wywala `JsonException` CAŁEJ deserializacji `GET /orders/{id}` i zamówienie „znika" jako null (incydent mtrtrade 2026-08-14, fix `fe1f605`: `OptionId`/`VariantId` w `SellasistSelectedOption` + `ExternalUserId` → `long?`). Objaw-sygnatura: zamówienia z jednego marketplace przechodzą (pole null), z innego WSZYSTKIE padają. Dotyczy każdego przyszłego pola typu `*_id` pochodzącego z Allegro/Temu/eMAG itd. (`external_offer_id` celowo niemapowane).
 - Endpoint `/categories` zwraca dużo śmieciowych wpisów ("Nadrzędna Grupa Główna"). Realne kategorie są na dalszych stronach. Lepszym podejściem jest wyciąganie kategorii z detali produktów (`categories` w `SellasistProductResponse`) i pobieranie szczegółów per kategoria via `/categories/{id}`.
 - Pole `description` w produkcie to tablica datacells (format Allegro JSON) — wymaga konwersji na HTML. Może też zawierać czysty HTML.
 - Produkt bulk zwraca `product_id` (nie `id`) — DTO `SellasistProductBulkItem` mapuje to poprawnie.
@@ -152,5 +155,7 @@ Ta library jest konsumowana przez projekt `B2B` (`d:\Claude\B2B`) — używana w
 **404 nie jest logowane** — Sellasist używa `404 {"code":404,"error":"No records found"}` jako poprawnej odpowiedzi dla list pustych (np. `/ordersshipments?order_id=X` dla zamówienia bez przesyłek). Bez tej reguły każde świeżo utworzone zamówienie generowało Warning w logach DB konsumenta (`BaselinkerToSellasist.Connector` → tabela `SystemLogs` zaśmiecana). Dla 5xx + 4xx innych niż 404 (np. 401 unauthorized) logujemy normalnie.
 
 Przy deserialization fail: `LogError`. Zwraca `default(T)` (null).
+
+**Pułapka konsumenta:** null z `GetOrderAsync` NIE odróżnia 404 od błędu parsowania/sieci — a error „Failed to deserialize" trafia tylko do ILoggera konsumenta (jeśli jego provider filtruje kategorie po prefiksie, musi przepuszczać `"Sellasist."`, inaczej błąd jest niewidoczny — tak było w SellasistOrderModifier do 2026-08-14). Dla pobrania zamówienia z czytelnym powodem użyj `GetOrderDetailedAsync`.
 
 Dla krytycznych operacji (tworzenie zamówień) użyj `CreateOrderRawAsync` — zwraca raw body + status code, które consumer zapisuje w audit log (w B2B: `AuditLog.Payload` nvarchar max). Pozwala na debug bez reprodukcji: payload z requestem/response/stack trace'em kopiowany ze strony `/admin/orders/{id}` w modalu "Szczegoly".
