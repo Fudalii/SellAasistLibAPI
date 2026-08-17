@@ -134,6 +134,12 @@ Target frameworks: `net9.0;net10.0` (multi-target — konsumenci na .NET 9 i .NE
 - Pole `description` w produkcie to tablica datacells (format Allegro JSON) — wymaga konwersji na HTML. Może też zawierać czysty HTML.
 - Produkt bulk zwraca `product_id` (nie `id`) — DTO `SellasistProductBulkItem` mapuje to poprawnie.
 - Pola dodatkowe zamówień (`GetExtraFieldsAsync`) — endpoint to `/orders_fields` (NIE `/extra-fields`).
+- **Zapisywalność pól linii zamówienia (PUT /orders_lines/{lineId}, zweryfikowane na żywo 2026-08)**:
+  działa `name`, `quantity`, `price`, `weight` (liczba lub string "1.5"), `additional_information`
+  (pusty/null IGNOROWANE — czyszczenie spacją " "); **READ-ONLY (200 + brak zapisu): `signature`,
+  `catalog_number`, `symbol`, `ean`** — to snapshoty/pola integracji marketplace. `PUT /products/{id}
+  {weight}` działa, ale nie propaguje się do istniejących linii (snapshot).
+- **Karta zamówienia w panelu (link dla usera)**: `https://{username}.sellasist.pl/admin/orders/edit/{orderId}`.
 - Pole `as_set` (zestawy) w `SellasistProductResponse` jest typu **`string?`** (nie `bool`!). Sellasist API zwraca `"0"`/`"1"`/`"true"`/`"false"` jako string mimo schematu boolean. Konsumenci muszą parsować: `isSet = AsSet == "1" || AsSet?.Equals("true", IgnoreCase) == true`.
 - **Konwencja DTO**: osobne DTO per operacja CRUD na tym samym zasobie, mimo że pola się powtarzają. Adresy: `SellasistAddress` (read), `SellasistCreateOrderAddress` (create), `SellasistUpdateBillAddressRequest` (update). Powód: każdy endpoint Sellasist akceptuje inny zestaw pól; dedykowane DTO dokumentuje kontrakt API i ogranicza błędne użycie.
 
