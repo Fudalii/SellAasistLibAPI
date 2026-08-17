@@ -95,6 +95,13 @@ public class SellasistCreateOrderAddress
 
     [JsonPropertyName("company_nip")]
     public string? CompanyNip { get; set; }
+
+    /// <summary>Kraj adresu — Sellasist wymaga ZAGNIEŻDŻONEGO obiektu <c>{ id, code, name }</c> (płaskie
+    /// <c>country_code</c> jest ignorowane). Słownik: <c>ISellasistService.GetCountriesAsync()</c> (Polska = id 170,
+    /// code PL). <c>null</c> = nie wysyłaj (Sellasist wpisze domyślny kraj sklepu) — dla zamówień zagranicznych
+    /// ZAWSZE ustawiaj, bo bez kraju nie da się nadać przesyłki.</summary>
+    [JsonPropertyName("country")]
+    public SellasistCountry? Country { get; set; }
 }
 
 /// <summary>Pozycja koszyka w zamówieniu Sellasist.</summary>

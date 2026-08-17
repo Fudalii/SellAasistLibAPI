@@ -70,6 +70,9 @@ SendRequestAsync<T>(HttpMethod, string endpoint, object? body = null)
 - `UpdateOrderLineAsync(int lineId, SellasistOrderLineRequest)` — PUT `/orders_lines/{id}`. Aktualizacja quantity/price/name istniejącej linii
 - `DeleteOrderLineAsync(int lineId)` — DELETE `/orders_lines/{id}`
 
+**Słowniki:**
+- `GetCountriesAsync()` — GET `/countries` → `List<SellasistCountry>` `{ id, code (ISO-2), name }`. Słownik globalny platformy (te same id we wszystkich sklepach; PL = 170). Źródło `SellasistCreateOrderAddress.Country`.
+
 **AWB / Shipments:**
 - `SubmitAwbAsync(SellasistAddAwbRequest)` — przesłanie numeru śledzenia do Sellasist
 - `GetOrderShipmentsAsync(int orderId)` — historia przesyłek zamówienia
@@ -141,6 +144,7 @@ Target frameworks: `net9.0;net10.0` (multi-target — konsumenci na .NET 9 i .NE
   {weight}` działa, ale nie propaguje się do istniejących linii (snapshot).
 - **Karta zamówienia w panelu (link dla usera)**: `https://{username}.sellasist.pl/admin/orders/edit/{orderId}`.
 - Pole `as_set` (zestawy) w `SellasistProductResponse` jest typu **`string?`** (nie `bool`!). Sellasist API zwraca `"0"`/`"1"`/`"true"`/`"false"` jako string mimo schematu boolean. Konsumenci muszą parsować: `isSet = AsSet == "1" || AsSet?.Equals("true", IgnoreCase) == true`.
+- **Kraj adresu (`country`) w POST /orders i PUT bill_address — tylko zagnieżdżony obiekt.** Płaskie `country_code` Sellasist ignoruje, a bez `country` zamówienie dostaje domyślny kraj sklepu (zagranicznej przesyłki nie da się nadać). `SellasistCreateOrderAddress.Country` (`SellasistCountry`, `Id` jest `int?`): najlepiej komplet `{ id, code, name }` z `GetCountriesAsync()`, ale SA przyjmuje też sam `{ code: "DE" }` (ISO-2) albo `{ id: 170 }` dla PL — `null`-e są pomijane w JSON (potwierdzone produkcyjnie w ABConnect; konsument: Numoco KQS `SellasistCountryCatalog`).
 - **Konwencja DTO**: osobne DTO per operacja CRUD na tym samym zasobie, mimo że pola się powtarzają. Adresy: `SellasistAddress` (read), `SellasistCreateOrderAddress` (create), `SellasistUpdateBillAddressRequest` (update). Powód: każdy endpoint Sellasist akceptuje inny zestaw pól; dedykowane DTO dokumentuje kontrakt API i ogranicza błędne użycie.
 
 ## Kontekst integracji z B2B

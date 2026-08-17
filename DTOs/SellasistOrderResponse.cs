@@ -96,9 +96,13 @@ public class SellasistAddress
     [JsonPropertyName("country")] public SellasistCountry? Country { get; set; }
 }
 
+/// <summary>Kraj adresu Sellasist. W odczycie (GET) przychodzi komplet <c>{ id, code, name }</c>. W zapisie (POST /orders,
+/// PUT bill_address) Sellasist przyjmuje też niepełny obiekt: sam <c>{ code }</c> (ISO-2) dla dowolnego kraju albo
+/// <c>{ id: 170 }</c> dla Polski — pola <c>null</c> są pomijane w JSON. Płaskie <c>country_code</c> jest ignorowane.</summary>
 public class SellasistCountry
 {
-    [JsonPropertyName("id")] public int Id { get; set; }
+    /// <summary>Id kraju w słowniku platformy (GET /countries; PL = 170). <c>null</c> = nie wysyłaj (wystarczy <see cref="Code"/>).</summary>
+    [JsonPropertyName("id")] public int? Id { get; set; }
     [JsonPropertyName("code")] public string? Code { get; set; }
     [JsonPropertyName("name")] public string? Name { get; set; }
 }

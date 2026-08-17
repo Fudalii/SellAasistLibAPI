@@ -133,6 +133,11 @@ public interface ISellasistService
     /// <summary>Pobiera liste metod platnosci skonfigurowanych w sklepie Sellasist (/payments).</summary>
     Task<List<SellasistPaymentMethodResponse>> GetPaymentMethodsAsync();
 
+    /// <summary>Pobiera słownik krajów (GET /countries) — <c>{ id, code (ISO-2), name }</c>. Słownik jest globalny
+    /// dla platformy (te same id we wszystkich sklepach; PL = 170). Używaj do wypełnienia
+    /// <see cref="SellasistCreateOrderAddress.Country"/> — Sellasist przyjmuje kraj tylko jako zagnieżdżony obiekt.</summary>
+    Task<List<SellasistCountry>> GetCountriesAsync();
+
     // Extra fields
     /// <summary>Pobiera liste dodatkowych pól zamówień z /extra-fields.</summary>
     Task<List<SellasistExtraFieldResponse>> GetExtraFieldsAsync();

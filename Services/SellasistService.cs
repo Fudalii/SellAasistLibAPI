@@ -572,6 +572,9 @@ public class SellasistService(IHttpClientFactory httpClientFactory, SellasistCon
         return result ?? new List<SellasistPaymentMethodResponse>();
     }
 
+    public async Task<List<SellasistCountry>> GetCountriesAsync()
+        => await SendRequestAsync<List<SellasistCountry>>("countries", HttpMethod.Get) ?? [];
+
     // === EXTRA FIELDS ===
 
     public async Task<List<SellasistExtraFieldResponse>> GetExtraFieldsAsync()
