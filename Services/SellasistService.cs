@@ -1,4 +1,6 @@
-﻿using System.Net.Http.Headers;
+﻿using System.Net;
+using System.Net.Http.Headers;
+using System.Net.Sockets;
 using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
@@ -55,7 +57,87 @@ public class SellasistService(IHttpClientFactory httpClientFactory, SellasistCon
 
     // === CORE METHOD ===
 
-    private async Task<T?> SendRequestAsync<T>(string endpoint, HttpMethod method, object? body = null)
+    /// <summary>Ile razy próbujemy wysłać jedno zapytanie (razem z pierwszą próbą), gdy padnie łącze
+    /// albo serwer odpowie błędem przejściowym.</summary>
+    private const int MaxAttempts = 3;
+
+    /// <summary>Timeout dla endpointów listowych z paginacją (products_bulk, products, categories,
+    /// manufacturers). Domyślne 30 s bywa za mało dla strony 500 pozycji z katalogu liczącego tysiące
+    /// produktów, a wyjątek timeoutu wywracał CAŁY przebieg synchronizacji — zanim poszedł pierwszy produkt.</summary>
+    public static readonly TimeSpan ListTimeout = TimeSpan.FromSeconds(180);
+
+    /// <summary>Czy zapytanie wolno powtórzyć. GET/PUT/DELETE są idempotentne — powtórka daje ten sam skutek.
+    /// POST-a nie ponawiamy NIGDY: zerwane połączenie nie mówi, czy serwer zdążył utworzyć rekord, więc
+    /// druga próba mogłaby zrobić drugie zamówienie albo drugi produkt.</summary>
+    private static bool CanRetry(HttpMethod method)
+        => method == HttpMethod.Get || method == HttpMethod.Put
+        || method == HttpMethod.Delete || method == HttpMethod.Head;
+
+    /// <summary>Awaria łącza warta ponowienia: zerwane połączenie (SocketException 10054), błąd I/O,
+    /// timeout klienta HTTP (leci jako TaskCanceledException — własnego tokenu anulowania tu nie ma).</summary>
+    private static bool IsTransientFailure(Exception ex)
+        => ex is HttpRequestException or IOException or SocketException or TaskCanceledException;
+
+    /// <summary>Odpowiedź warta ponowienia: 408 (timeout), 429 (rate limit) i błędy serwera 5xx.</summary>
+    private static bool IsTransientStatus(HttpStatusCode status)
+        => status is HttpStatusCode.RequestTimeout or HttpStatusCode.TooManyRequests || (int)status >= 500;
+
+    /// <summary>Odstęp przed kolejną próbą — 2 s, potem 4 s (ponad zwykły throttle z konfiguracji).</summary>
+    private static TimeSpan RetryDelay(int attempt) => TimeSpan.FromSeconds(2 * attempt);
+
+    /// <summary>Wysyła jedno zapytanie i zwraca surowy status + treść, ponawiając próby dla metod
+    /// idempotentnych. Gdy padną wszystkie — wyjątek leci do wołającego (świadomie: „nie wiem" musi być
+    /// odróżnialne od „pusto", inaczej cache katalogu wyczyściłby się na cichej awarii sieci).</summary>
+    private async Task<(HttpStatusCode Status, string Body)> SendRawAsync(
+        string endpoint, HttpMethod method, object? body, TimeSpan? timeout)
+    {
+        var url = $"{_config.BaseUrl}/{endpoint}";
+        var json = body is null ? null : JsonSerializer.Serialize(body, JsonOptions);
+        var retryable = CanRetry(method);
+
+        for (int attempt = 1; ; attempt++)
+        {
+            await ApplyThrottleAsync();
+
+            try
+            {
+                using var request = new HttpRequestMessage(method, url);
+                request.Headers.Add("apiKey", _config.ApiToken);
+                request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+                if (json is not null)
+                    request.Content = new StringContent(json, Encoding.UTF8, "application/json");
+
+                // CreateClient oddaje za każdym razem NOWY HttpClient (współdzielony jest tylko handler),
+                // więc Timeout wolno ustawić per zapytanie — nie rusza to pozostałych wywołań.
+                using var client = httpClientFactory.CreateClient("SellasistApi");
+                if (timeout is { } t) client.Timeout = t;
+
+                using var response = await client.SendAsync(request);
+                var content = await response.Content.ReadAsStringAsync();
+
+                if (retryable && attempt < MaxAttempts && IsTransientStatus(response.StatusCode))
+                {
+                    logger.LogWarning("Sellasist {Method} /{Endpoint}: HTTP {Status} — próba {Attempt}/{Max}, ponawiam za {Delay} s.",
+                        method.Method, endpoint, (int)response.StatusCode, attempt, MaxAttempts, RetryDelay(attempt).TotalSeconds);
+                    await Task.Delay(RetryDelay(attempt));
+                    continue;
+                }
+
+                return (response.StatusCode, content);
+            }
+            catch (Exception ex) when (retryable && attempt < MaxAttempts && IsTransientFailure(ex))
+            {
+                logger.LogWarning(ex, "Sellasist {Method} /{Endpoint}: zapytanie nie doszło ({Powod}) — próba {Attempt}/{Max}, ponawiam za {Delay} s.",
+                    method.Method, endpoint, ex.GetType().Name, attempt, MaxAttempts, RetryDelay(attempt).TotalSeconds);
+                await Task.Delay(RetryDelay(attempt));
+            }
+        }
+    }
+
+    /// <summary>Zapytanie do API z deserializacją odpowiedzi. Zwraca default przy HTTP non-2xx
+    /// i przy błędzie parsowania; wyjątki sieciowe (po wyczerpaniu ponowień) przepuszcza do wołającego.</summary>
+    /// <param name="timeout">Nadpisanie timeoutu dla tego zapytania (null = 30 s z rejestracji klienta).</param>
+    private async Task<T?> SendRequestAsync<T>(string endpoint, HttpMethod method, object? body = null, TimeSpan? timeout = null)
     {
         if (string.IsNullOrWhiteSpace(_config.ApiToken))
         {
@@ -63,32 +145,16 @@ public class SellasistService(IHttpClientFactory httpClientFactory, SellasistCon
             return default;
         }
 
-        await ApplyThrottleAsync();
+        var (status, responseContent) = await SendRawAsync(endpoint, method, body, timeout);
 
-        var url = $"{_config.BaseUrl}/{endpoint}";
-
-        using var request = new HttpRequestMessage(method, url);
-        request.Headers.Add("apiKey", _config.ApiToken);
-        request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-
-        if (body != null)
-        {
-            var json = JsonSerializer.Serialize(body, JsonOptions);
-            request.Content = new StringContent(json, Encoding.UTF8, "application/json");
-        }
-
-        using var client = httpClientFactory.CreateClient("SellasistApi");
-        using var response = await client.SendAsync(request);
-        var responseContent = await response.Content.ReadAsStringAsync();
-
-        if (!response.IsSuccessStatusCode)
+        if (!IsSuccess(status))
         {
             // 404 dla zasobów listowych w Sellasist znaczy „brak rekordów" — to nie błąd, tylko pusta lista.
             // Nie logujemy warningu, żeby nie zaśmiecać logów (np. /ordersshipments dla świeżego zamówienia).
-            if (response.StatusCode != System.Net.HttpStatusCode.NotFound)
+            if (status != HttpStatusCode.NotFound)
             {
                 logger.LogWarning("Sellasist {Method} /{Endpoint} failed: {Status} {Body}",
-                    method.Method, endpoint, (int)response.StatusCode, responseContent);
+                    method.Method, endpoint, (int)status, responseContent);
             }
             return default;
         }
@@ -107,10 +173,13 @@ public class SellasistService(IHttpClientFactory httpClientFactory, SellasistCon
         }
     }
 
+    private static bool IsSuccess(HttpStatusCode status) => (int)status is >= 200 and <= 299;
+
     /// <summary>Jak <see cref="SendRequestAsync{T}"/>, ale rozróżnia BŁĄD (HTTP non-2xx poza 404,
     /// wyjątek sieci/timeout, błąd deserializacji) od pustego wyniku (404/2xx) — Success=false oznacza,
     /// że dane są NIEZNANE, a nie puste. Używać tam, gdzie częściowa odpowiedź jest groźna (paginacja).</summary>
-    private async Task<(bool Success, T? Data)> TrySendRequestAsync<T>(string endpoint, HttpMethod method, object? body = null)
+    private async Task<(bool Success, T? Data)> TrySendRequestAsync<T>(
+        string endpoint, HttpMethod method, object? body = null, TimeSpan? timeout = null)
     {
         if (string.IsNullOrWhiteSpace(_config.ApiToken))
         {
@@ -118,34 +187,18 @@ public class SellasistService(IHttpClientFactory httpClientFactory, SellasistCon
             return (false, default);
         }
 
-        await ApplyThrottleAsync();
-
-        var url = $"{_config.BaseUrl}/{endpoint}";
-
         try
         {
-            using var request = new HttpRequestMessage(method, url);
-            request.Headers.Add("apiKey", _config.ApiToken);
-            request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+            var (status, responseContent) = await SendRawAsync(endpoint, method, body, timeout);
 
-            if (body != null)
-            {
-                var json = JsonSerializer.Serialize(body, JsonOptions);
-                request.Content = new StringContent(json, Encoding.UTF8, "application/json");
-            }
-
-            using var client = httpClientFactory.CreateClient("SellasistApi");
-            using var response = await client.SendAsync(request);
-            var responseContent = await response.Content.ReadAsStringAsync();
-
-            if (!response.IsSuccessStatusCode)
+            if (!IsSuccess(status))
             {
                 // 404 dla zasobów listowych = brak rekordów (pusta strona) — to sukces, nie błąd.
-                if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+                if (status == HttpStatusCode.NotFound)
                     return (true, default);
 
                 logger.LogWarning("Sellasist {Method} /{Endpoint} failed: {Status} {Body}",
-                    method.Method, endpoint, (int)response.StatusCode, responseContent);
+                    method.Method, endpoint, (int)status, responseContent);
                 return (false, default);
             }
 
@@ -464,24 +517,29 @@ public class SellasistService(IHttpClientFactory httpClientFactory, SellasistCon
     public async Task<SellasistProductBulkUpdateResponse?> UpdateProductsBulkAsync(List<SellasistProductBulkUpdateItem> items)
         => await SendRequestAsync<SellasistProductBulkUpdateResponse>("products_bulk", HttpMethod.Put, items);
 
+    /// <summary>Pełna lista produktów z /products_bulk (paginacja po <paramref name="limit"/>).
+    /// ⚠️ Rzuca wyjątkiem, gdy którejś strony nie udało się pobrać: lista urwana w połowie wygląda jak
+    /// kompletna, a konsument (cache katalogu) skasowałby na jej podstawie „brakujące" produkty i przy
+    /// najbliższej synchronizacji utworzył duplikaty. Strony czytamy z dłuższym timeoutem.</summary>
     public async Task<List<SellasistProductBulkItem>> GetProductsBulkAsync(int limit = 500)
     {
         var all = new List<SellasistProductBulkItem>();
         int offset = 0;
-        bool hasMore = true;
 
-        while (hasMore)
+        while (true)
         {
-            var batch = await SendRequestAsync<List<SellasistProductBulkItem>>(
-                $"products_bulk?offset={offset}&limit={limit}", HttpMethod.Get);
+            var (ok, batch) = await TrySendRequestAsync<List<SellasistProductBulkItem>>(
+                $"products_bulk?offset={offset}&limit={limit}", HttpMethod.Get, timeout: ListTimeout);
 
-            if (batch is { Count: > 0 })
-            {
-                all.AddRange(batch);
-                offset += limit;
-                if (batch.Count < limit) hasMore = false;
-            }
-            else hasMore = false;
+            if (!ok)
+                throw new HttpRequestException(
+                    $"Sellasist /products_bulk: nie udało się pobrać strony offset={offset} — lista produktów byłaby niepełna, przerywam.");
+
+            if (batch is not { Count: > 0 }) break;
+
+            all.AddRange(batch);
+            if (batch.Count < limit) break;
+            offset += limit;
         }
         return all;
     }
@@ -495,7 +553,7 @@ public class SellasistService(IHttpClientFactory httpClientFactory, SellasistCon
         while (hasMore)
         {
             var batch = await SendRequestAsync<List<SellasistProductListItem>>(
-                $"products?offset={offset}&limit={limit}", HttpMethod.Get);
+                $"products?offset={offset}&limit={limit}", HttpMethod.Get, timeout: ListTimeout);
 
             if (batch is { Count: > 0 })
             {
@@ -522,7 +580,7 @@ public class SellasistService(IHttpClientFactory httpClientFactory, SellasistCon
         while (hasMore)
         {
             var batch = await SendRequestAsync<List<SellasistCategoryResponse>>(
-                $"categories?offset={offset}&limit={limit}", HttpMethod.Get);
+                $"categories?offset={offset}&limit={limit}", HttpMethod.Get, timeout: ListTimeout);
 
             if (batch is { Count: > 0 })
             {
@@ -547,7 +605,7 @@ public class SellasistService(IHttpClientFactory httpClientFactory, SellasistCon
         while (hasMore)
         {
             var batch = await SendRequestAsync<List<SellasistManufacturerResponse>>(
-                $"manufacturers?offset={offset}&limit={limit}", HttpMethod.Get);
+                $"manufacturers?offset={offset}&limit={limit}", HttpMethod.Get, timeout: ListTimeout);
 
             if (batch is { Count: > 0 })
             {

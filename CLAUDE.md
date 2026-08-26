@@ -42,6 +42,25 @@ SendRequestAsync<T>(HttpMethod, string endpoint, object? body = null)
 - Nagłówek autentykacji: `apiKey: {ApiToken}`
 - Serializacja: `JsonNamingPolicy.SnakeCaseLower`, `PropertyNameCaseInsensitive`, null omitted, `NumberHandling.AllowReadingFromString`
 - Przy błędzie HTTP lub deserializacji: loguje + zwraca `null` (bez rzucania wyjątku)
+- **Awaria łącza leci wyjątkiem do wołającego** (po wyczerpaniu ponowień) — świadomie: „nie wiem" musi być
+  odróżnialne od „pusto", inaczej konsument z cache'em skasowałby dane na cichej awarii sieci
+
+### Ponawianie i timeouty (2026-08-26)
+
+`SendRawAsync` to jedno miejsce, przez które idzie każdy request z `SendRequestAsync`/`TrySendRequestAsync`:
+
+- **3 próby**, odstęp 2 s → 4 s (ponad zwykły throttle `MinDelayBetweenRequestsMs`).
+- Ponawiamy **tylko metody idempotentne** — `GET`/`PUT`/`DELETE`/`HEAD`. **`POST` nigdy**: zerwane połączenie
+  nie mówi, czy serwer zdążył utworzyć rekord, więc powtórka zrobiłaby drugie zamówienie albo drugi produkt.
+- Warunki ponowienia: `HttpRequestException`, `IOException`, `SocketException` (m.in. **10054 — „An existing
+  connection was forcibly closed"**, realny objaw przy masowym `PUT /products`), `TaskCanceledException`
+  (timeout klienta), oraz odpowiedzi **408 / 429 / 5xx**.
+- **Timeout per zapytanie**: `SendRequestAsync(..., timeout:)`. `CreateClient` oddaje za każdym razem nowy
+  `HttpClient` (współdzielony jest tylko handler), więc `client.Timeout` wolno ustawić lokalnie i nie rusza
+  to pozostałych wywołań. Domyślnie 30 s; czytniki listowe z paginacją (`products_bulk`, `products`,
+  `categories`, `manufacturers`) używają `SellasistService.ListTimeout` = **180 s** — strona 500 pozycji
+  z katalogu na kilka tysięcy produktów nie mieści się w 30 s, a wyjątek timeoutu wywracał konsumentowi
+  CAŁY przebieg synchronizacji, zanim poszedł pierwszy produkt.
 
 ## Operacje na zamówieniach
 
@@ -83,7 +102,8 @@ SendRequestAsync<T>(HttpMethod, string endpoint, object? body = null)
 - `Configure(SellasistConfig newConfig)` — nadpisanie credentials w runtime (np. dane z DB zamiast appsettings)
 
 **Produkty:**
-- `GetProductsBulkAsync(int limit = 500)` — lista produktów z `/products_bulk`, paginacja auto-batch. Zwraca `SellasistProductBulkItem` (uwaga: pole to `ProductId`, nie `Id`)
+- `GetProductsBulkAsync(int limit = 500)` — lista produktów z `/products_bulk`, paginacja auto-batch. Zwraca `SellasistProductBulkItem` (uwaga: pole to `ProductId`, nie `Id`).
+  **⚠️ Rzuca `HttpRequestException`, gdy którejś strony nie udało się pobrać** — lista urwana w połowie wygląda jak kompletna, a konsument trzymający cache katalogu skasowałby na jej podstawie „brakujące" produkty i przy najbliższej synchronizacji utworzył je ponownie jako duplikaty. Strony czytane z `ListTimeout` (180 s)
 - `GetProductAsync(int productId)` — szczegóły produktu z `/products/{id}`. Opis to `List<SellasistProductDescription>` (datacells z Allegro JSON lub HTML). Kategorie osadzone w produkcie jako `List<SellasistProductCategory>`
 
 **Kategorie:**
@@ -91,7 +111,8 @@ SendRequestAsync<T>(HttpMethod, string endpoint, object? body = null)
 - `GetCategoryAsync(int categoryId)` — szczegóły kategorii z `/categories/{id}`. Nazwa w `Languages[0].Title`
 
 **Producenci (manufacturers):**
-- `GetManufacturersAsync(int limit = 500)` — lista producentów z `/manufacturers`, paginacja auto-batch. Zwraca `SellasistManufacturerResponse` (id, title)
+- `GetManufacturersAsync(int limit = 500)` — lista producentów z `/manufacturers`, paginacja auto-batch. Zwraca `SellasistManufacturerResponse` (id, title).
+  **⚠️ Ten endpoint oddaje `id` jako LICZBĘ**, nie string jak reszta API — DTO ma `[JsonConverter(typeof(NumberOrStringJsonConverter))]`
 
 **Statusy zamówień:**
 - `GetOrderStatusesAsync()` — lista statusów zamówień z `/statuses`. Pojedyncze żądanie (bez paginacji). Zwraca `SellasistStatusResponse` (id, name). Używane przez consumerów do mapowania własnych statusów B2B → Sellasist przy push zamówień.
@@ -133,6 +154,7 @@ Target frameworks: `net9.0;net10.0` (multi-target — konsumenci na .NET 9 i .NE
 ## Uwagi dot. API Sellasist
 
 - **⚠️ Identyfikatory nadawane przez marketplace'y NIGDY jako `int` — zawsze `long?` (lub string).** Temu wstawia do `carts[].selected_options_data[].option_id` wartości 14–15-cyfrowe (realne: `57575915659074`, `155374736958714`) — `int?` w DTO wywala `JsonException` CAŁEJ deserializacji `GET /orders/{id}` i zamówienie „znika" jako null (incydent mtrtrade 2026-08-14, fix `fe1f605`: `OptionId`/`VariantId` w `SellasistSelectedOption` + `ExternalUserId` → `long?`). Objaw-sygnatura: zamówienia z jednego marketplace przechodzą (pole null), z innego WSZYSTKIE padają. Dotyczy każdego przyszłego pola typu `*_id` pochodzącego z Allegro/Temu/eMAG itd. (`external_offer_id` celowo niemapowane).
+- **`/manufacturers` zwraca `id` jako liczbę** (`[{"id": 5, "title": "…"}]`), w odróżnieniu od reszty API, która id oddaje stringiem. `string Id` bez konwertera wywalał `JsonException` na `$[0].id` → `SendRequestAsync` łapał to, logował „Failed to deserialize…" i oddawał `null`, więc konsument dostawał **pustą listę producentów i po cichu przestawał wysyłać `manufacturer_id`** (objaw: „produkty w SA bez producenta", zgłoszone w Numoco KQS 2026-08-26). `NumberHandling.AllowReadingFromString` tu nie pomaga — to konwersja w drugą stronę (string→liczba).
 - Endpoint `/categories` zwraca dużo śmieciowych wpisów ("Nadrzędna Grupa Główna"). Realne kategorie są na dalszych stronach. Lepszym podejściem jest wyciąganie kategorii z detali produktów (`categories` w `SellasistProductResponse`) i pobieranie szczegółów per kategoria via `/categories/{id}`.
 - Pole `description` w produkcie to tablica datacells (format Allegro JSON) — wymaga konwersji na HTML. Może też zawierać czysty HTML.
 - Produkt bulk zwraca `product_id` (nie `id`) — DTO `SellasistProductBulkItem` mapuje to poprawnie.
