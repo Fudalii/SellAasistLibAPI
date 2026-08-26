@@ -1,4 +1,4 @@
-using System.Net.Http.Headers;
+﻿using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
@@ -448,6 +448,12 @@ public class SellasistService(IHttpClientFactory httpClientFactory, SellasistCon
 
     public async Task<SellasistCreateImageResponse?> AddProductImageAsync(SellasistCreateImageRequest request)
         => await SendRequestAsync<SellasistCreateImageResponse>("images", HttpMethod.Post, request);
+
+    public async Task<List<SellasistProductImageItem>> GetProductImagesAsync(int productId)
+        => await SendRequestAsync<List<SellasistProductImageItem>>($"images/{productId}", HttpMethod.Get) ?? [];
+
+    public async Task<bool> DeleteProductImageAsync(int imageId)
+        => await SendRequestAsync<bool>($"images/{imageId}", HttpMethod.Delete);
 
     public async Task<bool> UpdateProductQuantityAsync(int productId, string quantity)
         => await SendRequestAsync<bool>($"products/{productId}", HttpMethod.Put, new { quantity });

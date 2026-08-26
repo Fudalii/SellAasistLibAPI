@@ -1,4 +1,4 @@
-using Sellasist.DTOs;
+﻿using Sellasist.DTOs;
 
 namespace Sellasist.Interfaces;
 
@@ -90,6 +90,16 @@ public interface ISellasistService
     /// <summary>Dodaje zdjęcie do istniejącego produktu (POST /images). image_content w formacie
     /// base64 "data:image/jpeg;base64,...". Fallback gdy URL zdjęcia nie jest publicznie dostępny dla Sellasist.</summary>
     Task<SellasistCreateImageResponse?> AddProductImageAsync(SellasistCreateImageRequest request);
+
+    /// <summary>Zdjęcia produktu (GET /images/{productId}) — z ID każdego zdjęcia i datą wgrania.
+    /// Osobna rodzina endpointów: <c>PUT /products/{id}</c> z polem <c>images</c> tylko DODAJE zdjęcia do galerii
+    /// (pusta tablica ani flaga zastępowania nic nie robią), więc podmiana wymaga skasowania starych przez
+    /// <see cref="DeleteProductImageAsync"/>. Zweryfikowane na żywym API 2026-08-26.</summary>
+    Task<List<SellasistProductImageItem>> GetProductImagesAsync(int productId);
+
+    /// <summary>Usuwa jedno zdjęcie produktu (DELETE /images/{imageId}). <paramref name="imageId"/> to ID ZDJĘCIA
+    /// z <see cref="GetProductImagesAsync"/>, nie ID produktu.</summary>
+    Task<bool> DeleteProductImageAsync(int imageId);
 
     /// <summary>Aktualizuje stan magazynowy produktu (PUT /products/{productId}).</summary>
     Task<bool> UpdateProductQuantityAsync(int productId, string quantity);
