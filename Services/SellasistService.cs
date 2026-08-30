@@ -451,6 +451,10 @@ public class SellasistService(IHttpClientFactory httpClientFactory, SellasistCon
     public async Task<bool> UpdateOrderLineRawAsync(int lineId, object body)
         => await SendRequestAsync<bool>($"orders_lines/{lineId}", HttpMethod.Put, body);
 
+    public async Task<bool> UpdateOrderLineAdditionalFieldsAsync(int lineId, IEnumerable<SellasistFieldUpdate> fields)
+        => await SendRequestAsync<bool>($"orders_lines/{lineId}", HttpMethod.Put,
+            new SellasistUpdateFieldRequest { AdditionalFields = [.. fields] });
+
     public async Task<bool> DeleteOrderLineAsync(int lineId)
         => await SendRequestAsync<bool>($"orders_lines/{lineId}", HttpMethod.Delete);
 

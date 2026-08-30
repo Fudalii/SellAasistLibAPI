@@ -31,6 +31,19 @@ public class SellasistOrderResponse
     /// <summary>Listy przewozowe przypięte do zamówienia (tylko GET /orders/{id}) — źródło
     /// <c>ordershipment_uuid</c> do pobrania etykiety przez GET /ordersshipments/{uuid}.</summary>
     [JsonPropertyName("shipments")] public List<SellasistOrderShipmentInfo>? Shipments { get; set; }
+
+    /// <summary>Numer śledzenia przesyłki na poziomie zamówienia (tylko GET /orders/{id}).
+    /// Zwykle powiela <c>shipments[0].tracking_number</c>; przy wielu listach przewozowych czytaj
+    /// <see cref="Shipments"/>.</summary>
+    [JsonPropertyName("tracking_number")]
+    [JsonConverter(typeof(NumberOrStringJsonConverter))]
+    public string? TrackingNumber { get; set; }
+
+    /// <summary>Flaga faktury: "1" = kupujący poprosił o fakturę. Przychodzi jako STRING i tylko
+    /// w GET /orders/{id} — lista GET /orders_with_carts tego pola nie zwraca.</summary>
+    [JsonPropertyName("invoice")]
+    [JsonConverter(typeof(NumberOrStringJsonConverter))]
+    public string? Invoice { get; set; }
 }
 
 /// <summary>List przewozowy w odpowiedzi GET /orders/{id} (pole shipments[]).</summary>
@@ -44,7 +57,9 @@ public class SellasistOrderShipmentInfo
     /// <summary>Usługa kurierska (np. "inpostCourierC2C", "INPOST - Paczka kurierska").</summary>
     [JsonPropertyName("service")] public string? Service { get; set; }
 
-    [JsonPropertyName("tracking_number")] public string? TrackingNumber { get; set; }
+    [JsonPropertyName("tracking_number")]
+    [JsonConverter(typeof(NumberOrStringJsonConverter))]
+    public string? TrackingNumber { get; set; }
 
     /// <summary>Numery śledzenia paczek listu (jeden list może mieć wiele paczek).</summary>
     [JsonPropertyName("tracking_numbers")] public List<SellasistTrackingNumberInfo>? TrackingNumbers { get; set; }
@@ -53,8 +68,13 @@ public class SellasistOrderShipmentInfo
 /// <summary>Pojedynczy numer śledzenia w shipments[].tracking_numbers — pola w camelCase (inaczej niż reszta API).</summary>
 public class SellasistTrackingNumberInfo
 {
-    [JsonPropertyName("trackingNumber")] public string? TrackingNumber { get; set; }
-    [JsonPropertyName("alternativeTrackingNumber")] public string? AlternativeTrackingNumber { get; set; }
+    [JsonPropertyName("trackingNumber")]
+    [JsonConverter(typeof(NumberOrStringJsonConverter))]
+    public string? TrackingNumber { get; set; }
+
+    [JsonPropertyName("alternativeTrackingNumber")]
+    [JsonConverter(typeof(NumberOrStringJsonConverter))]
+    public string? AlternativeTrackingNumber { get; set; }
     [JsonPropertyName("deliveryStatusInternal")] public string? DeliveryStatusInternal { get; set; }
     [JsonPropertyName("deliveryStatusExternal")] public string? DeliveryStatusExternal { get; set; }
     [JsonPropertyName("deliveryStatusExternalDescription")] public string? DeliveryStatusExternalDescription { get; set; }
@@ -164,6 +184,19 @@ public class SellasistCartItem
 
     /// <summary>Wybrane opcje produktu w formie strukturalnej (nazwa + wartość).</summary>
     [JsonPropertyName("selected_options_data")] public List<SellasistSelectedOption>? SelectedOptionsData { get; set; }
+
+    /// <summary>Pola dodatkowe POZYCJI zamówienia („Pola danych" o dostępności „Produkt zamówienia";
+    /// panel: Treści → Pola danych). To osobny byt niż pola dodatkowe zamówienia z GET /orders_fields —
+    /// API nie ma endpointu z ich katalogiem, więc ID pola odczytuje się z adresu edycji w panelu.
+    /// <para>Występuje TYLKO w GET /orders/{id} — lista GET /orders_with_carts tego pola nie zwraca.
+    /// Gdy pozycja nie ma żadnej wartości, klucz w JSON w ogóle nie występuje (null, nie pusta lista).</para>
+    /// <para>ZAPISYWALNE przez PUT /orders_lines/{lineId} — zweryfikowane na żywo 2026-08-30 (konto
+    /// electroskypl, zamówienie 444): zapis nie rusza pozostałych linii, a pusty string, null i spacja
+    /// jednakowo CZYSZCZĄ wartość (inaczej niż <see cref="AdditionalInformation"/>, gdzie czyści tylko spacja).
+    /// Zapis idzie przez <c>UpdateOrderLineAdditionalFieldsAsync</c> i można go połączyć w jednym żądaniu
+    /// ze zmianą wagi. Pole niedostępne dla pozycji zamówienia jest po cichu pomijane — odpowiedź to 200
+    /// i brak wartości w kolejnym odczycie.</para></summary>
+    [JsonPropertyName("additional_fields")] public List<SellasistAdditionalField>? AdditionalFields { get; set; }
 }
 
 public class SellasistShipmentInfo
@@ -173,9 +206,16 @@ public class SellasistShipmentInfo
     [JsonPropertyName("id")] public int? Id { get; set; }
 }
 
+/// <summary>Wartość pola dodatkowego — zamówienia (<c>orders.additional_fields</c>)
+/// albo pozycji (<c>orders.carts[].additional_fields</c>).</summary>
 public class SellasistAdditionalField
 {
-    [JsonPropertyName("field_id")] public int FieldId { get; set; }
+    /// <summary>ID pola. Sellasist zwraca je jako STRING (<c>"field_id": "16"</c>) — atrybut trzyma
+    /// deserializację nawet wtedy, gdy DTO trafi do klienta bez globalnego AllowReadingFromString.</summary>
+    [JsonPropertyName("field_id")]
+    [JsonNumberHandling(JsonNumberHandling.AllowReadingFromString)]
+    public int FieldId { get; set; }
+
     [JsonPropertyName("field_value")] public string? FieldValue { get; set; }
 }
 

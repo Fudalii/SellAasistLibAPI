@@ -65,9 +65,21 @@ public interface ISellasistService
     Task<bool> UpdateOrderLineAsync(int lineId, SellasistOrderLineRequest request);
 
     /// <summary>Generyczny PUT /orders_lines/{lineId} z partial body — aktualizuje tylko podane pola linii
-    /// (np. <c>signature</c>), pozostałe zostają bez zmian. Bezpieczniejsze niż pełny rebuild
-    /// <see cref="SellasistOrderLineRequest"/> gdy zmieniamy jedno pole (brak ryzyka nadpisania ceny/ilości).</summary>
+    /// (np. <c>weight</c>, <c>additional_information</c>), pozostałe zostają bez zmian. Bezpieczniejsze niż pełny
+    /// rebuild <see cref="SellasistOrderLineRequest"/> gdy zmieniamy jedno pole (brak ryzyka nadpisania ceny/ilości).
+    /// <para>UWAGA: <c>signature</c> i <c>catalog_number</c> są przez API TYLKO DO ODCZYTU — PUT zwraca 200
+    /// i po cichu je ignoruje. Zero w <c>weight</c> zapisuje wyłącznie string "0.000"; <c>0</c> i "0" są pomijane.</para></summary>
     Task<bool> UpdateOrderLineRawAsync(int lineId, object body);
+
+    /// <summary>PUT /orders_lines/{lineId} — zapisuje pola dodatkowe POZYCJI zamówienia
+    /// (<c>carts[].additional_fields</c>, czyli „Pola danych" o dostępności „Produkt zamówienia").
+    /// Nie rusza pozostałych pól linii ani pozostałych linii zamówienia.
+    /// <para>Pusta wartość (pusty string, <c>null</c>, spacja) CZYŚCI pole — inaczej niż
+    /// <c>additional_information</c>, gdzie czyści wyłącznie spacja.</para>
+    /// <para>Pole niedostępne dla pozycji zamówienia jest pomijane po cichu: odpowiedź 200, a przy kolejnym
+    /// odczycie wartości nie ma. Po zapisie warto zweryfikować odczytem.</para>
+    /// <para>Zweryfikowane na żywo 2026-08-30 (konto electroskypl, zamówienie 444).</para></summary>
+    Task<bool> UpdateOrderLineAdditionalFieldsAsync(int lineId, IEnumerable<SellasistFieldUpdate> fields);
 
     /// <summary>DELETE /orders_lines/{lineId} — usuwa linie z zamowienia. Uzywane do synchronizacji B2B:
     /// gdy admin usunie pozycje z juz-wyslanego zamowienia.</summary>
@@ -149,7 +161,15 @@ public interface ISellasistService
     Task<List<SellasistCountry>> GetCountriesAsync();
 
     // Extra fields
-    /// <summary>Pobiera liste dodatkowych pól zamówień z /extra-fields.</summary>
+    /// <summary>Pobiera katalog pól dodatkowych ZAMÓWIENIA z GET /orders_fields (<c>{id, name, type}</c>).
+    /// <para>To jeden z TRZECH rozłącznych bytów w Sellasist: (1) pola dodatkowe zamówienia — ten endpoint,
+    /// wartości w <c>orders.additional_fields</c>, zapis przez <see cref="UpdateAdditionalFieldAsync"/>;
+    /// (2) „Pola danych" POZYCJI (panel: Treści → Pola danych, dostępność „Produkt zamówienia") — wartości
+    /// w <c>orders.carts[].additional_fields</c>, zapis przez <see cref="UpdateOrderLineAdditionalFieldsAsync"/>,
+    /// <b>bez endpointu katalogowego</b> (ID przepisuje się z adresu edycji pola w panelu);
+    /// (3) pola dodatkowe PRODUKTU — GET /products_fields.</para>
+    /// <para>Uwaga na <c>type</c>: do pola plikowego (<c>saledocument</c>, <c>files</c>) nie wolno wysyłać
+    /// zwykłego tekstu — Sellasist potraktuje go jak base64 pliku i zapisze śmieci bez błędu.</para></summary>
     Task<List<SellasistExtraFieldResponse>> GetExtraFieldsAsync();
 
     // Operation documents (dokumenty magazynowe — PZ, WZ)

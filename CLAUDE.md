@@ -87,6 +87,8 @@ SendRequestAsync<T>(HttpMethod, string endpoint, object? body = null)
 **Linie zamówień (`/orders_lines`) — dla synchronizacji po utworzeniu:**
 - `CreateOrderLineAsync(SellasistOrderLineRequest)` — POST `/orders_lines`. Zwraca `SellasistCreateOrderLineResponse` z `Id` nowej linii (consumer zapisuje do lokalnego pola mappingowego, np. `OrderItem.SellasistLineId`)
 - `UpdateOrderLineAsync(int lineId, SellasistOrderLineRequest)` — PUT `/orders_lines/{id}`. Aktualizacja quantity/price/name istniejącej linii
+- `UpdateOrderLineRawAsync(int lineId, object body)` — generyczny partial PUT `/orders_lines/{id}` (bez rebuildu całej linii, więc bez ryzyka nadpisania ceny/ilości)
+- `UpdateOrderLineAdditionalFieldsAsync(int lineId, IEnumerable<SellasistFieldUpdate>)` — pola dodatkowe POZYCJI (`carts[].additional_fields`); szczegóły w sekcji „Trzy rodzaje pól dodatkowych" niżej
 - `DeleteOrderLineAsync(int lineId)` — DELETE `/orders_lines/{id}`
 
 **Słowniki:**
@@ -158,11 +160,45 @@ Target frameworks: `net9.0;net10.0` (multi-target — konsumenci na .NET 9 i .NE
 - Endpoint `/categories` zwraca dużo śmieciowych wpisów ("Nadrzędna Grupa Główna"). Realne kategorie są na dalszych stronach. Lepszym podejściem jest wyciąganie kategorii z detali produktów (`categories` w `SellasistProductResponse`) i pobieranie szczegółów per kategoria via `/categories/{id}`.
 - Pole `description` w produkcie to tablica datacells (format Allegro JSON) — wymaga konwersji na HTML. Może też zawierać czysty HTML.
 - Produkt bulk zwraca `product_id` (nie `id`) — DTO `SellasistProductBulkItem` mapuje to poprawnie.
-- Pola dodatkowe zamówień (`GetExtraFieldsAsync`) — endpoint to `/orders_fields` (NIE `/extra-fields`).
+- **Trzy ROZŁĄCZNE rodzaje pól dodatkowych — nie mylić ich ze sobą** (ten sam klucz JSON `additional_fields`):
+
+  | Rodzaj | Panel | Katalog przez API | Wartości w JSON | Zapis |
+  |---|---|---|---|---|
+  | pole **zamówienia** | Ustawienia → Pola dodatkowe zamówień (`/admin/field_orders/edit`) | `GET /orders_fields` → `{id, name, type}` | `orders.additional_fields[]` | `PUT /orders/{id}` (`UpdateAdditionalFieldAsync`) |
+  | **„Pole danych" POZYCJI** | Treści → Pola danych (`/admin/datacell/edit`), zaznaczone **„Dostępność: Produkt zamówienia"** | **BRAK ENDPOINTU** — ID przepisuje się z adresu edycji pola | `orders.carts[].additional_fields[]` | `PUT /orders_lines/{lineId}` (`UpdateOrderLineAdditionalFieldsAsync`) |
+  | pole **produktu** | karta produktu | `GET /products_fields` (w tej libce jeszcze nie ma) | `product.additional_fields[]` | `PUT /products/{id}` |
+
+  `field_id` przychodzi jako **STRING** (`"field_id": "16"`) — `SellasistAdditionalField.FieldId` ma dlatego `[JsonNumberHandling(AllowReadingFromString)]` obok globalnej opcji klienta.
+  Uwaga na `type` z `/orders_fields`: do pola plikowego (`saledocument`, `files`) wysłany zwykły tekst jest traktowany jak base64 pliku — Sellasist zapisze śmieci i nie zgłosi błędu.
+- **Pola dodatkowe POZYCJI — zachowanie zapisu (zweryfikowane na żywo 2026-08-30, konto electroskypl, zamówienie 444):**
+  `PUT /orders_lines/{lineId}` z `{"additional_fields":[{"field_id":16,"field_value":"…"}]}` **DZIAŁA**
+  (200 + `{"id":"449"}`), `field_id` przyjmowany zarówno jako liczba, jak i string. Sąsiednie linie
+  pozostają nietknięte. **Pusty string, `null` i spacja jednakowo CZYSZCZĄ wartość** — inaczej niż
+  `additional_information`, gdzie czyści wyłącznie spacja. Zapis pola dodatkowego można **połączyć
+  w jednym żądaniu ze zmianą wagi** (`{additional_fields:[…], weight:1.5}`). ⚠️ Pole, które nie jest
+  dostępne dla pozycji zamówienia, jest **pomijane po cichu**: odpowiedź 200, a przy kolejnym odczycie
+  wartości nie ma — po zapisie warto zweryfikować odczytem.
+- **⚠️ Czyszczenie pola dodatkowego zależy od POZIOMU — dwie różne reguły** (zweryfikowane 2026-08-30):
+  pole **POZYCJI** (`PUT /orders_lines/{id}`) czyści pusty string, `null` i spacja — dowolna z tych trzech;
+  pole **ZAMÓWIENIA** (`PUT /orders/{id}`, `UpdateAdditionalFieldAsync`) **ignoruje pusty string** (200 + brak
+  zmiany) i czyści wyłącznie **SPACJĄ `" "`** — jak `additional_information`. Konsument kopiujący komplet
+  wartości do pola zamówienia musi podmienić pustą wartość na spację, inaczej po skasowaniu ostatniej pozycji
+  w polu zamówienia zostaje nieaktualna treść.
+- **⚠️ Czego NIE MA na liście `GET /orders_with_carts`** (zmierzone 2026-08-30): `additional_fields`
+  (ani zamówienia, ani pozycji), `invoice`, `tracking_number`, `shipments`, `carts[].line_id`,
+  `carts[].location`, `carts[].image_thumb`, `carts[].selected_options_data`, `carts[].price_buy`.
+  Wszystko to jest **wyłącznie w `GET /orders/{id}`** (~177 ms/zapytanie bez dławika). Zwykła lista
+  `GET /orders` daje jeszcze mniej: `id, creator, date, status, bill_address, payment, email, total,
+  comment, source, shop`. Konsekwencja: każdy widok potrzebujący pól dodatkowych pozycji, kuriera
+  albo numeru przesyłki **musi wołać szczegół per zamówienie** — policz to przed projektowaniem ekranu.
+  Brakujące `line_id` na liście nie boli: `carts[].id` ma tam tę samą wartość (wzorzec `c.LineId ?? c.Id`).
+- **Zero w `weight` linii zapisuje wyłącznie string `"0.000"`** — `0` (liczba) i `"0"` są ignorowane
+  (200 + brak zmiany), bo API traktuje je jak wartość pustą. Dotyczy tego samego mechanizmu, co
+  ignorowanie pustego `additional_information`.
 - **Zapisywalność pól linii zamówienia (PUT /orders_lines/{lineId}, zweryfikowane na żywo 2026-08)**:
   działa `name`, `quantity`, `price`, `weight` (liczba lub string "1.5"), `additional_information`
-  (pusty/null IGNOROWANE — czyszczenie spacją " "); **READ-ONLY (200 + brak zapisu): `signature`,
-  `catalog_number`, `symbol`, `ean`** — to snapshoty/pola integracji marketplace. `PUT /products/{id}
+  (pusty/null IGNOROWANE — czyszczenie spacją " "), `additional_fields` (pola danych pozycji);
+  **READ-ONLY (200 + brak zapisu): `signature`, `catalog_number`, `symbol`, `ean`** — to snapshoty/pola integracji marketplace. `PUT /products/{id}
   {weight}` działa, ale nie propaguje się do istniejących linii (snapshot).
 - **Karta zamówienia w panelu (link dla usera)**: `https://{username}.sellasist.pl/admin/orders/edit/{orderId}`.
 - Pole `as_set` (zestawy) w `SellasistProductResponse` jest typu **`string?`** (nie `bool`!). Sellasist API zwraca `"0"`/`"1"`/`"true"`/`"false"` jako string mimo schematu boolean. Konsumenci muszą parsować: `isSet = AsSet == "1" || AsSet?.Equals("true", IgnoreCase) == true`.
