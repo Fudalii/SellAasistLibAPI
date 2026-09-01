@@ -34,6 +34,21 @@ public interface ISellasistService
     /// <summary>Pobiera zamówienia zmienione od daty dateFrom (paginacja po limit). Używane do synchronizacji statusów SA → B2B.</summary>
     Task<List<SellasistOrderResponse>> GetOrdersAsync(DateTime dateFrom, int limit = 50);
 
+    /// <summary>Zamówienia z oknem czasowym RAZEM z pozycjami koszyka (GET /orders_with_carts
+    /// z date_from/date_to). Endpoint przyjmuje filtry daty, mimo że dokumentacja Sellasist wymienia
+    /// przy nim tylko status_id — zweryfikowane na żywym koncie 2026-08-31.
+    /// <para>Okno jest domknięte z dołu i OTWARTE z góry: <c>[dateFrom, dateToExclusive)</c>.
+    /// Dzień <paramref name="dateToExclusive"/> NIE wchodzi do wyniku, więc jeden dzień to
+    /// <c>(d, d.AddDays(1))</c>. Granica włączająca zgubiłaby wszystkie dni poza pierwszym.</para>
+    /// <para>Wyniki posortowane malejąco po dacie. Wyjście offsetem poza zbiór zwraca HTTP 404,
+    /// które warstwa transportowa traktuje jak pustą listę — paginacja kończy się wtedy normalnie.</para>
+    /// </summary>
+    /// <param name="dateFrom">Początek okna (włącznie), rozdzielczość dnia.</param>
+    /// <param name="dateToExclusive">Koniec okna (wyłącznie), rozdzielczość dnia.</param>
+    /// <param name="limit">Rekordów na stronę — twardy sufit API to 100.</param>
+    Task<List<SellasistOrderResponse>> GetOrdersWithCartsByDateAsync(
+        DateTime dateFrom, DateTime dateToExclusive, int limit = 100);
+
     // Order updates
     Task<bool> UpdateOrderStatusAsync(int orderId, int statusId);
 
@@ -123,6 +138,16 @@ public interface ISellasistService
 
     /// <summary>Masowa aktualizacja produktów (PUT /products_bulk). Max 999 na raz.</summary>
     Task<SellasistProductBulkUpdateResponse?> UpdateProductsBulkAsync(List<SellasistProductBulkUpdateItem> items);
+
+    /// <summary>Pobiera stany magazynowe (GET /products_stock). Bez filtra zwraca całą listę stronami.</summary>
+    Task<List<SellasistProductStock>> GetProductsStockAsync(int limit = 100, CancellationToken ct = default);
+
+    /// <summary>Pobiera stan jednego produktu wskazanego symbolem (SKU). Zwraca null, gdy produktu nie ma.</summary>
+    Task<SellasistProductStock?> GetProductStockBySymbolAsync(string symbol, CancellationToken ct = default);
+
+    /// <summary>Masowa aktualizacja stanów magazynowych (PUT /products_stock). Endpoint przyjmuje do 1000
+    /// pozycji na żądanie — większe listy dzielone są automatycznie. Zwraca pozycje potwierdzone przez API.</summary>
+    Task<List<SellasistProductStock>> UpdateProductsStockAsync(List<SellasistProductStockUpdate> items, CancellationToken ct = default);
 
     /// <summary>Pobiera liste produktow z /products_bulk (paginacja po 500). Szybka lista z ID produkty i podstawowymi danymi jak EAN, Symbol...</summary>
     Task<List<SellasistProductBulkItem>> GetProductsBulkAsync(int limit = 500);

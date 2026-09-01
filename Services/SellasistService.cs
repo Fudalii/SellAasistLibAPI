@@ -413,6 +413,34 @@ public class SellasistService(IHttpClientFactory httpClientFactory, SellasistCon
         return all;
     }
 
+    /// <summary>Zamówienia z oknem czasowym razem z koszykami — patrz opis w ISellasistService.
+    /// Okno to [dateFrom, dateToExclusive); 404 przy wyjściu poza zbiór jest tu normalnym końcem
+    /// paginacji (SendRequestAsync zamienia go na null bez logowania ostrzeżenia).</summary>
+    public async Task<List<SellasistOrderResponse>> GetOrdersWithCartsByDateAsync(
+        DateTime dateFrom, DateTime dateToExclusive, int limit = 100)
+    {
+        var all = new List<SellasistOrderResponse>();
+        int offset = 0;
+        bool hasMore = true;
+        var od = dateFrom.ToString("yyyy-MM-dd");
+        var doWyl = dateToExclusive.ToString("yyyy-MM-dd");
+
+        while (hasMore)
+        {
+            var batch = await SendRequestAsync<List<SellasistOrderResponse>>(
+                $"orders_with_carts?offset={offset}&limit={limit}&date_from={od}&date_to={doWyl}", HttpMethod.Get);
+
+            if (batch is { Count: > 0 })
+            {
+                all.AddRange(batch);
+                offset += limit;
+                if (batch.Count < limit) hasMore = false;
+            }
+            else hasMore = false;
+        }
+        return all;
+    }
+
     // === ORDER UPDATES ===
 
     public async Task<bool> UpdateOrderStatusAsync(int orderId, int statusId)
@@ -546,6 +574,59 @@ public class SellasistService(IHttpClientFactory httpClientFactory, SellasistCon
             offset += limit;
         }
         return all;
+    }
+
+    public async Task<List<SellasistProductStock>> GetProductsStockAsync(int limit = 100, CancellationToken ct = default)
+    {
+        var all = new List<SellasistProductStock>();
+        int offset = 0;
+
+        while (true)
+        {
+            ct.ThrowIfCancellationRequested();
+
+            var (ok, batch) = await TrySendRequestAsync<List<SellasistProductStock>>(
+                $"products_stock?offset={offset}&limit={limit}", HttpMethod.Get, timeout: ListTimeout);
+
+            if (!ok)
+                throw new HttpRequestException(
+                    $"Sellasist /products_stock: nie udało się pobrać strony offset={offset} — lista stanów byłaby niepełna, przerywam.");
+
+            if (batch is not { Count: > 0 }) break;
+
+            all.AddRange(batch);
+            if (batch.Count < limit) break;
+            offset += limit;
+        }
+        return all;
+    }
+
+    public async Task<SellasistProductStock?> GetProductStockBySymbolAsync(string symbol, CancellationToken ct = default)
+    {
+        // Endpoint z filtrem zwraca tablicę (zwykle 0 lub 1 element); 404 = brak produktu.
+        var lista = await SendRequestAsync<List<SellasistProductStock>>(
+            $"products_stock?symbol={Uri.EscapeDataString(symbol)}", HttpMethod.Get);
+        return lista is { Count: > 0 } ? lista[0] : null;
+    }
+
+    public async Task<List<SellasistProductStock>> UpdateProductsStockAsync(List<SellasistProductStockUpdate> items, CancellationToken ct = default)
+    {
+        // Twardy limit endpointu to 1000 pozycji (powyżej HTTP 422) — dzielimy zachowawczo po 500.
+        const int chunkSize = 500;
+        var wynik = new List<SellasistProductStock>();
+
+        foreach (var chunk in items.Chunk(chunkSize))
+        {
+            ct.ThrowIfCancellationRequested();
+
+            var request = new SellasistProductStockUpdateRequest { Products = chunk.ToList() };
+            var response = await SendRequestAsync<List<SellasistProductStock>>(
+                "products_stock", HttpMethod.Put, request, timeout: ListTimeout);
+
+            if (response is not null) wynik.AddRange(response);
+        }
+
+        return wynik;
     }
 
     public async Task<List<SellasistProductListItem>> GetProductsAsync(int limit = 100)
