@@ -142,6 +142,11 @@ public interface ISellasistService
     /// <summary>Pobiera stany magazynowe (GET /products_stock). Bez filtra zwraca całą listę stronami.</summary>
     Task<List<SellasistProductStock>> GetProductsStockAsync(int limit = 100, CancellationToken ct = default);
 
+    /// <summary>Pobiera JEDNĄ stronę stanów magazynowych (GET /products_stock?offset=&amp;limit=) bez dalszego
+    /// stronicowania. Do testu połączenia i podglądu — pełną listę daje GetProductsStockAsync, która z małym
+    /// limitem przemieli cały katalog po kilka pozycji na zapytanie.</summary>
+    Task<List<SellasistProductStock>> GetProductsStockPageAsync(int offset = 0, int limit = 100, CancellationToken ct = default);
+
     /// <summary>Pobiera stan jednego produktu wskazanego symbolem (SKU). Zwraca null, gdy produktu nie ma.</summary>
     Task<SellasistProductStock?> GetProductStockBySymbolAsync(string symbol, CancellationToken ct = default);
 

@@ -601,6 +601,14 @@ public class SellasistService(IHttpClientFactory httpClientFactory, SellasistCon
         return all;
     }
 
+    public async Task<List<SellasistProductStock>> GetProductsStockPageAsync(int offset = 0, int limit = 100, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        var strona = await SendRequestAsync<List<SellasistProductStock>>(
+            $"products_stock?offset={offset}&limit={limit}", HttpMethod.Get);
+        return strona ?? [];
+    }
+
     public async Task<SellasistProductStock?> GetProductStockBySymbolAsync(string symbol, CancellationToken ct = default)
     {
         // Endpoint z filtrem zwraca tablicę (zwykle 0 lub 1 element); 404 = brak produktu.
