@@ -39,11 +39,39 @@ public class SellasistOrderResponse
     [JsonConverter(typeof(NumberOrStringJsonConverter))]
     public string? TrackingNumber { get; set; }
 
+    /// <summary>Notatki sprzedawcy przypięte do zamówienia (panel: sekcja „Notatki" na karcie
+    /// zamówienia). Zwracane WYŁĄCZNIE przez GET /orders/{id} — lista GET /orders tego pola nie ma.
+    /// Brak notatek = pusta tablica.</summary>
+    [JsonPropertyName("notes")] public List<SellasistOrderNote>? Notes { get; set; }
+
     /// <summary>Flaga faktury: "1" = kupujący poprosił o fakturę. Przychodzi jako STRING i tylko
     /// w GET /orders/{id} — lista GET /orders_with_carts tego pola nie zwraca.</summary>
     [JsonPropertyName("invoice")]
     [JsonConverter(typeof(NumberOrStringJsonConverter))]
     public string? Invoice { get; set; }
+}
+
+/// <summary>Notatka sprzedawcy przy zamówieniu (pole notes[] w GET /orders/{id}).
+/// Zweryfikowane na koncie cvsklep 2026-09-07 — wszystkie pola przychodzą jako stringi.</summary>
+public class SellasistOrderNote
+{
+    /// <summary>Identyfikator notatki — API zwraca go jako string ("6").</summary>
+    [JsonPropertyName("id")]
+    [JsonConverter(typeof(NumberOrStringJsonConverter))]
+    public string? Id { get; set; }
+
+    /// <summary>Autor notatki — konto operatora panelu, zwykle adres e-mail.</summary>
+    [JsonPropertyName("author")] public string? Author { get; set; }
+
+    /// <summary>Data dodania w formacie "yyyy-MM-dd HH:mm:ss".</summary>
+    [JsonPropertyName("date")] public string? Date { get; set; }
+
+    /// <summary>Treść notatki (może być wielolinijkowa).</summary>
+    [JsonPropertyName("text")] public string? Text { get; set; }
+
+    /// <summary>Widoczność notatki — na zbadanym koncie zawsze pusty string; dopuszczalne
+    /// wartości nie są opisane w specyfikacji, więc nie filtruj po tym polu bez sprawdzenia.</summary>
+    [JsonPropertyName("visibility")] public string? Visibility { get; set; }
 }
 
 /// <summary>List przewozowy w odpowiedzi GET /orders/{id} (pole shipments[]).</summary>
