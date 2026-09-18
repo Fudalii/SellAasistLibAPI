@@ -184,6 +184,11 @@ public interface ISellasistService
     Task<List<SellasistManufacturerResponse>> GetManufacturersAsync(int limit = 500);
 
     // Statuses
+    /// <summary>Sprawdza dane dostepowe jednym lekkim zapytaniem, ROZROZNIAJAC blad od pustej odpowiedzi.
+    /// Metody slownikowe polykaja blad HTTP i zwracaja pusta liste, wiec nie nadaja sie na test polaczenia:
+    /// zly token wyglada w nich tak samo jak konto bez statusow.</summary>
+    Task<SellasistConnectionTestResult> TestConnectionAsync(CancellationToken ct = default);
+
     /// <summary>Pobiera liste statusow zamowien z /statuses.</summary>
     Task<List<SellasistStatusResponse>> GetOrderStatusesAsync();
 

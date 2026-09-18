@@ -736,6 +736,49 @@ public class SellasistService(IHttpClientFactory httpClientFactory, SellasistCon
         return all;
     }
 
+    /// <summary>Sprawdza dane dostępowe: wykonuje jedno lekkie zapytanie i zwraca PRAWDZIWY wynik,
+    /// z rozróżnieniem błędu od pustej odpowiedzi.
+    ///
+    /// <para>⚠ Nie używać do tego <see cref="GetOrderStatusesAsync"/> ani innej metody słownikowej:
+    /// one celowo połykają błąd HTTP i zwracają pustą listę, więc zły token wygląda w nich identycznie
+    /// jak konto bez statusów. Test oparty na liczbie pozycji kłamie w obie strony — mówi „działa”
+    /// przy błędzie autoryzacji i „nie działa” na poprawnie połączonym, pustym koncie.</para></summary>
+    public async Task<SellasistConnectionTestResult> TestConnectionAsync(CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+
+        if (string.IsNullOrWhiteSpace(_config.Username))
+            return new SellasistConnectionTestResult(false, null, 0, "Nie podano nazwy konta Sellasist.");
+        if (string.IsNullOrWhiteSpace(_config.ApiToken))
+            return new SellasistConnectionTestResult(false, null, 0, "Nie podano tokenu API.");
+
+        try
+        {
+            var (status, body) = await SendRawAsync("statuses", HttpMethod.Get, null, TimeSpan.FromSeconds(20));
+
+            if (!IsSuccess(status))
+            {
+                var code = (int)status;
+                var reason = code switch
+                {
+                    401 or 403 => $"Sellasist odrzucił token API (HTTP {code}). Sprawdź klucz i nazwę konta.",
+                    404 => "Sellasist nie zna tego adresu (HTTP 404). Sprawdź nazwę konta.",
+                    429 => "Sellasist odrzucił zapytanie z powodu limitu (HTTP 429). Spróbuj za chwilę.",
+                    _ => $"Sellasist odpowiedział błędem HTTP {code}."
+                };
+                return new SellasistConnectionTestResult(false, code, 0, reason);
+            }
+
+            var statuses = JsonSerializer.Deserialize<List<SellasistStatusResponse>>(body, JsonOptions) ?? [];
+            return new SellasistConnectionTestResult(true, (int)status, statuses.Count, null);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Sellasist: test połączenia nie powiódł się.");
+            return new SellasistConnectionTestResult(false, null, 0, $"Nie udało się połączyć: {ex.Message}");
+        }
+    }
+
     public async Task<List<SellasistStatusResponse>> GetOrderStatusesAsync()
     {
         var result = await SendRequestAsync<List<SellasistStatusResponse>>("statuses", HttpMethod.Get);
