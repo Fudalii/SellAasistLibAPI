@@ -31,6 +31,14 @@ public interface ISellasistService
     Task<(bool Success, List<SellasistOrderResponse> Orders)> TryGetOrdersByStatusAsync(int statusId, int limit = 100);
     Task<List<SellasistOrderResponse>> GetOrdersWithCartsAsync(int statusId, int limit = 50);
 
+    /// <summary>Jak GetOrdersWithCartsAsync (zamówienia w statusie RAZEM z koszykami), ale rozróżnia błąd
+    /// od pustej listy: Success=false gdy dowolna strona paginacji padła — lista jest wtedy NIEPEŁNA.
+    /// Pusty status (404 „No records found") to Success=true z pustą listą.
+    /// <para>Domyślna implementacja w interfejsie tylko po to, żeby istniejące atrapy (np. PickSort
+    /// MockSellasistService) kompilowały się bez zmian — SellasistService ma pełną.</para></summary>
+    Task<(bool Success, List<SellasistOrderResponse> Orders)> TryGetOrdersWithCartsByStatusAsync(int statusId, int limit = 100)
+        => throw new NotSupportedException($"{GetType().Name} nie obsługuje TryGetOrdersWithCartsByStatusAsync.");
+
     /// <summary>Pobiera zamówienia zmienione od daty dateFrom (paginacja po limit). Używane do synchronizacji statusów SA → B2B.</summary>
     Task<List<SellasistOrderResponse>> GetOrdersAsync(DateTime dateFrom, int limit = 50);
 

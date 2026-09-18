@@ -390,6 +390,31 @@ public class SellasistService(IHttpClientFactory httpClientFactory, SellasistCon
         return all;
     }
 
+    public async Task<(bool Success, List<SellasistOrderResponse> Orders)> TryGetOrdersWithCartsByStatusAsync(int statusId, int limit = 100)
+    {
+        var all = new List<SellasistOrderResponse>();
+        int offset = 0;
+
+        while (true)
+        {
+            var (ok, batch) = await TrySendRequestAsync<List<SellasistOrderResponse>>(
+                $"orders_with_carts?offset={offset}&limit={limit}&status_id={statusId}", HttpMethod.Get);
+
+            // Błąd w środku stronicowania = lista NIEZNANA — nie wolno zwrócić częściowej jako pełnej.
+            if (!ok)
+                return (false, all);
+
+            if (batch is { Count: > 0 })
+            {
+                all.AddRange(batch);
+                if (batch.Count < limit) break;
+                offset += limit;
+            }
+            else break;
+        }
+        return (true, all);
+    }
+
     public async Task<List<SellasistOrderResponse>> GetOrdersAsync(DateTime dateFrom, int limit = 50)
     {
         var all = new List<SellasistOrderResponse>();
