@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace Sellasist.DTOs;
 
 /// <summary>Element listy z endpointu /products_bulk.</summary>
@@ -24,4 +26,11 @@ public class SellasistProductBulkItem
 
     /// <summary>Lokalizacja produktu w magazynie.</summary>
     public string? Location { get; set; }
+
+    /// <summary>Czy produkt jest zestawem (pole "as_set": 1 = zestaw, 0 = produkt zwykły). Stan zestawu
+    /// Sellasist liczy ze składników i ignoruje wysłane quantity, więc synchronizacja stanów powinna
+    /// zestawy pomijać. API zwraca to pole różnie (bool, liczba albo tekst "0"/"1"), stąd tolerancyjny
+    /// konwerter — jedno pole w nietypowej postaci nie może wywrócić odczytu całego katalogu.</summary>
+    [JsonConverter(typeof(BoolOrNumberToIntJsonConverter))]
+    public int AsSet { get; set; }
 }
