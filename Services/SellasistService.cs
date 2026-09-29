@@ -62,8 +62,11 @@ public class SellasistService(IHttpClientFactory httpClientFactory, SellasistCon
     private const int MaxAttempts = 3;
 
     /// <summary>Timeout dla endpointów listowych z paginacją (products_bulk, products, categories,
-    /// manufacturers). Domyślne 30 s bywa za mało dla strony 500 pozycji z katalogu liczącego tysiące
-    /// produktów, a wyjątek timeoutu wywracał CAŁY przebieg synchronizacji — zanim poszedł pierwszy produkt.</summary>
+    /// manufacturers, orders, orders_with_carts). Domyślne 30 s bywa za mało dla strony 500 pozycji z katalogu
+    /// liczącego tysiące produktów, a wyjątek timeoutu wywracał CAŁY przebieg synchronizacji — zanim poszedł
+    /// pierwszy produkt. Listy zamówień dołączone 2026-09-29: nocą Sellasist odpowiadał na <c>GET /orders</c>
+    /// dłużej niż 30 s trzy razy z rzędu, a timeout (<c>TaskCanceledException</c>) zatrzymał worker statusów
+    /// w konektorze Numoco KQS na kilkanaście godzin.</summary>
     public static readonly TimeSpan ListTimeout = TimeSpan.FromSeconds(180);
 
     /// <summary>Czy zapytanie wolno powtórzyć. GET/PUT/DELETE są idempotentne — powtórka daje ten sam skutek.
@@ -329,7 +332,7 @@ public class SellasistService(IHttpClientFactory httpClientFactory, SellasistCon
         while (hasMore)
         {
             var batch = await SendRequestAsync<List<SellasistOrderResponse>>(
-                $"orders?offset={offset}&limit={limit}&status_id={statusId}", HttpMethod.Get);
+                $"orders?offset={offset}&limit={limit}&status_id={statusId}", HttpMethod.Get, timeout: ListTimeout);
 
             if (batch is { Count: > 0 })
             {
@@ -350,7 +353,7 @@ public class SellasistService(IHttpClientFactory httpClientFactory, SellasistCon
         while (true)
         {
             var (ok, batch) = await TrySendRequestAsync<List<SellasistOrderResponse>>(
-                $"orders?offset={offset}&limit={limit}&status_id={statusId}", HttpMethod.Get);
+                $"orders?offset={offset}&limit={limit}&status_id={statusId}", HttpMethod.Get, timeout: ListTimeout);
 
             // Błąd w środku stronicowania = lista NIEZNANA — nie wolno zwrócić częściowej jako pełnej
             // (konsument mógłby uznać ucięty zbiór za kompletny i stabilny).
@@ -377,7 +380,7 @@ public class SellasistService(IHttpClientFactory httpClientFactory, SellasistCon
         while (hasMore)
         {
             var batch = await SendRequestAsync<List<SellasistOrderResponse>>(
-                $"orders_with_carts?offset={offset}&limit={limit}&status_id={statusId}", HttpMethod.Get);
+                $"orders_with_carts?offset={offset}&limit={limit}&status_id={statusId}", HttpMethod.Get, timeout: ListTimeout);
 
             if (batch is { Count: > 0 })
             {
@@ -398,7 +401,7 @@ public class SellasistService(IHttpClientFactory httpClientFactory, SellasistCon
         while (true)
         {
             var (ok, batch) = await TrySendRequestAsync<List<SellasistOrderResponse>>(
-                $"orders_with_carts?offset={offset}&limit={limit}&status_id={statusId}", HttpMethod.Get);
+                $"orders_with_carts?offset={offset}&limit={limit}&status_id={statusId}", HttpMethod.Get, timeout: ListTimeout);
 
             // Błąd w środku stronicowania = lista NIEZNANA — nie wolno zwrócić częściowej jako pełnej.
             if (!ok)
@@ -425,7 +428,7 @@ public class SellasistService(IHttpClientFactory httpClientFactory, SellasistCon
         while (hasMore)
         {
             var batch = await SendRequestAsync<List<SellasistOrderResponse>>(
-                $"orders?offset={offset}&limit={limit}&date_from={dateFromStr}", HttpMethod.Get);
+                $"orders?offset={offset}&limit={limit}&date_from={dateFromStr}", HttpMethod.Get, timeout: ListTimeout);
 
             if (batch is { Count: > 0 })
             {
@@ -453,7 +456,7 @@ public class SellasistService(IHttpClientFactory httpClientFactory, SellasistCon
         while (hasMore)
         {
             var batch = await SendRequestAsync<List<SellasistOrderResponse>>(
-                $"orders_with_carts?offset={offset}&limit={limit}&date_from={od}&date_to={doWyl}", HttpMethod.Get);
+                $"orders_with_carts?offset={offset}&limit={limit}&date_from={od}&date_to={doWyl}", HttpMethod.Get, timeout: ListTimeout);
 
             if (batch is { Count: > 0 })
             {
